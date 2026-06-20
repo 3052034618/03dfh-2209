@@ -1,0 +1,208 @@
+@use '@/styles/variables.scss' as *;
+
+.item {
+  padding: $spacing-md;
+  background-color: #F8FAFC;
+  border-radius: $radius-md;
+  margin-bottom: $spacing-sm;
+  border: 2rpx solid transparent;
+  transition: all $transition-base;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &Optional {
+    background-color: #FCFCFD;
+    border-color: $color-divider;
+    opacity: 0.85;
+  }
+}
+
+.itemHeader {
+  margin-bottom: $spacing-sm;
+}
+
+.itemTitleRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xs;
+}
+
+.itemTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.requiredTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 12rpx;
+  background-color: $color-tag-red-bg;
+  color: $color-tag-red-text;
+  border-radius: $radius-xs;
+  font-weight: $font-weight-medium;
+}
+
+.optionalTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 12rpx;
+  background-color: $color-tag-gray-bg;
+  color: $color-tag-gray-text;
+  border-radius: $radius-xs;
+  font-weight: $font-weight-medium;
+}
+
+.itemDesc {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  line-height: 1.5;
+  display: block;
+}
+
+.itemBody {
+  margin-top: $spacing-sm;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm $spacing-md;
+  background-color: $color-bg-card;
+  border-radius: $radius-sm;
+}
+
+.switchLabels {
+  display: flex;
+  gap: $spacing-lg;
+}
+
+.switchLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  transition: all $transition-fast;
+  padding: $spacing-xs 0;
+
+  &Active {
+    color: $color-primary;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.inputSection {
+  padding: $spacing-md;
+  background-color: $color-bg-card;
+  border-radius: $radius-sm;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  margin-bottom: $spacing-sm;
+}
+
+.inputWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background-color: #F1F5F9;
+  border-radius: $radius-sm;
+  padding: 0 $spacing-md;
+  height: 72rpx;
+}
+
+.input {
+  flex: 1;
+  height: 72rpx;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.inputUnit {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+  margin-left: $spacing-xs;
+}
+
+.rangeHint {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  white-space: nowrap;
+}
+
+.refRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: $spacing-sm;
+  border-top: 1px dashed $color-divider;
+  gap: 4rpx;
+}
+
+.refLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.refValue {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+}
+
+.diffValue {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  margin-left: $spacing-xs;
+
+  &Ok {
+    color: $color-success;
+  }
+
+  &Warn {
+    color: $color-warning;
+  }
+
+  &Err {
+    color: $color-error;
+  }
+}
+
+.statusRow {
+  display: flex;
+  margin-top: $spacing-sm;
+}
+
+.passTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 16rpx;
+  background-color: $color-tag-green-bg;
+  color: $color-tag-green-text;
+  border-radius: $radius-xs;
+  font-weight: $font-weight-medium;
+}
+
+.warningTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 16rpx;
+  background-color: $color-tag-orange-bg;
+  color: $color-tag-orange-text;
+  border-radius: $radius-xs;
+  font-weight: $font-weight-medium;
+}
+
+.failTag {
+  font-size: $font-size-xs;
+  padding: 4rpx 16rpx;
+  background-color: $color-tag-red-bg;
+  color: $color-tag-red-text;
+  border-radius: $radius-xs;
+  font-weight: $font-weight-medium;
+}

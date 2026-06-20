@@ -1,0 +1,285 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+.content {
+  padding: $spacing-md $page-padding;
+}
+
+.selectorCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+}
+
+.selectorLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.selectorRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.selectorLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.selectorContainerNo {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  font-family: 'Menlo', 'Consolas', monospace;
+  @include text-ellipsis;
+}
+
+.selectorTempRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-top: $spacing-xs;
+}
+
+.selectorTempItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.selectorTempLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.selectorTempValue {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.selectorBtn {
+  @include button-reset;
+  height: $button-height-sm;
+  padding: 0 $spacing-md;
+  background-color: #F1F5F9;
+  color: $color-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-button;
+  border: none;
+  flex-shrink: 0;
+
+  &:active {
+    opacity: 0.85;
+    background-color: $color-bg-hover;
+  }
+}
+
+.resultBanner {
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+
+  &Pass {
+    background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
+  }
+
+  &Review {
+    background: linear-gradient(135deg, #EA580C 0%, #F59E0B 100%);
+  }
+
+  &Reject {
+    background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+  }
+
+  &Pending {
+    background: linear-gradient(135deg, #64748B 0%, #94A3B8 100%);
+  }
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-sm;
+}
+
+.resultTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-white;
+}
+
+.resultMain {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+  letter-spacing: 2rpx;
+}
+
+.resultSub {
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+}
+
+.issueList {
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.issueItem {
+  font-size: $font-size-sm;
+  color: $color-text-white;
+  line-height: 1.6;
+  padding: $spacing-xs 0;
+
+  &::before {
+    content: '• ';
+    font-weight: bold;
+  }
+}
+
+.progressInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.progressText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.progressNum {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.historySection {
+  margin-top: $spacing-xl;
+}
+
+.historyTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  padding: 0 $spacing-xs;
+}
+
+.historyItem {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-sm;
+  box-shadow: $shadow-card;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.historyLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.historyNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  font-family: 'Menlo', 'Consolas', monospace;
+  @include text-ellipsis;
+}
+
+.historyTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+}
+
+.bottomBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: $spacing-md $page-padding;
+  padding-bottom: calc($spacing-md + env(safe-area-inset-bottom));
+  background-color: $color-bg-card;
+  box-shadow: 0 -4rpx 16rpx rgba(15, 23, 42, 0.08);
+  display: flex;
+  gap: $spacing-md;
+  z-index: 100;
+}
+
+.resetBtn {
+  @include button-reset;
+  flex: 0 0 200rpx;
+  height: $button-height-lg;
+  background-color: #F1F5F9;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  border-radius: $radius-button;
+  border: none;
+
+  &:active {
+    background-color: $color-bg-hover;
+    opacity: 0.9;
+  }
+}
+
+.submitBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  border-radius: $radius-button;
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.3);
+
+  &:active {
+    opacity: 0.92;
+    transform: scale(0.99);
+  }
+
+  &Disabled {
+    background: #CBD5E1;
+    box-shadow: none;
+    color: $color-text-white;
+  }
+}
+
+.emptyHint {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-xl;
+  text-align: center;
+}
+
+.emptyHintText {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  line-height: 1.6;
+}

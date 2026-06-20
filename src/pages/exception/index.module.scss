@@ -1,0 +1,482 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+.content {
+  padding: $spacing-md $page-padding;
+}
+
+.alertBanner {
+  background: linear-gradient(135deg, #DC2626 0%, #EF4444 50%, #F87171 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  color: $color-text-white;
+  box-shadow: 0 4rpx 20rpx rgba(220, 38, 38, 0.25);
+}
+
+.alertTitleRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.alertIcon {
+  font-size: 40rpx;
+}
+
+.alertTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+}
+
+.alertDesc {
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sectionLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+  margin-top: $spacing-sm;
+  padding: 0 $spacing-xs;
+  display: block;
+  font-weight: $font-weight-medium;
+}
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.typeCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  box-shadow: $shadow-card;
+  border: 3rpx solid transparent;
+  transition: all $transition-base;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  &Active {
+    border-color: $color-primary;
+    background-color: #EFF6FF;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.typeCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.typeIcon {
+  font-size: 40rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #F1F5F9;
+  border-radius: $radius-sm;
+}
+
+.typeCheck {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: $radius-round;
+  border: 3rpx solid #CBD5E1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &Checked {
+    background-color: $color-primary;
+    border-color: $color-primary;
+  }
+}
+
+.typeCheckIcon {
+  font-size: 22rpx;
+  color: $color-text-white;
+  font-weight: bold;
+}
+
+.typeName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.typeHint {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  line-height: 1.4;
+}
+
+.reasonList {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-xs 0;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+}
+
+.reasonItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md $spacing-lg;
+  transition: background-color $transition-fast;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid $color-divider;
+  }
+
+  &:active {
+    background-color: #F8FAFC;
+  }
+}
+
+.reasonText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  flex: 1;
+}
+
+.reasonCheck {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: $radius-sm;
+  border: 3rpx solid #CBD5E1;
+  margin-left: $spacing-md;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &Checked {
+    background-color: $color-primary;
+    border-color: $color-primary;
+  }
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.photoItem {
+  aspect-ratio: 1;
+  border-radius: $radius-md;
+  background-color: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  border: 2rpx dashed #CBD5E1;
+  transition: all $transition-fast;
+
+  &Add {
+    border: 2rpx dashed $color-primary;
+    background-color: #EFF6FF;
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
+}
+
+.photoContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-xs;
+  color: $color-primary;
+}
+
+.photoAddIcon {
+  font-size: 56rpx;
+  line-height: 1;
+}
+
+.photoAddText {
+  font-size: $font-size-xs;
+}
+
+.photoImage {
+  width: 100%;
+  height: 100%;
+}
+
+.photoRemove {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: $radius-round;
+  background-color: rgba(220, 38, 38, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-white;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.locationCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.locationIcon {
+  font-size: 40rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background-color: #FEE2E2;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.locationContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.locationText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: 1.5;
+  @include text-ellipsis-multi(2);
+}
+
+.locationLoading {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.locationBtn {
+  @include button-reset;
+  height: $button-height-sm;
+  padding: 0 $spacing-md;
+  background-color: #EFF6FF;
+  color: $color-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-button;
+  border: none;
+  flex-shrink: 0;
+
+  &:active {
+    opacity: 0.85;
+    background-color: $color-bg-hover;
+  }
+}
+
+.actionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.actionTag {
+  padding: $spacing-sm $spacing-md;
+  background-color: $color-bg-card;
+  border-radius: $radius-button;
+  border: 2rpx solid #E2E8F0;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+  white-space: nowrap;
+
+  &Active {
+    background-color: #EFF6FF;
+    border-color: $color-primary;
+    color: $color-primary;
+    font-weight: $font-weight-semibold;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.descCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.descTextarea {
+  width: 100%;
+  min-height: 200rpx;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: 1.6;
+  background-color: #F8FAFC;
+  border-radius: $radius-sm;
+  padding: $spacing-md;
+}
+
+.descCounter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $spacing-sm;
+}
+
+.descCountText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.historySection {
+  margin-top: $spacing-xl;
+}
+
+.historyTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  padding: 0 $spacing-xs;
+}
+
+.historyCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-sm;
+  box-shadow: $shadow-card;
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-sm;
+}
+
+.historyLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+  min-width: 0;
+}
+
+.historyNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.historyMeta {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-xs;
+}
+
+.historyMetaText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.historyDesc {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  padding-top: $spacing-sm;
+  border-top: 1px solid $color-divider;
+  @include text-ellipsis-multi(2);
+}
+
+.bottomBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: $spacing-md $page-padding;
+  padding-bottom: calc($spacing-md + env(safe-area-inset-bottom));
+  background-color: $color-bg-card;
+  box-shadow: 0 -4rpx 16rpx rgba(15, 23, 42, 0.08);
+  display: flex;
+  gap: $spacing-md;
+  z-index: 100;
+}
+
+.clearBtn {
+  @include button-reset;
+  flex: 0 0 200rpx;
+  height: $button-height-lg;
+  background-color: #F1F5F9;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  border-radius: $radius-button;
+  border: none;
+
+  &:active {
+    background-color: $color-bg-hover;
+    opacity: 0.9;
+  }
+}
+
+.submitBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  border-radius: $radius-button;
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba(220, 38, 38, 0.3);
+
+  &:active {
+    opacity: 0.92;
+    transform: scale(0.99);
+  }
+
+  &Disabled {
+    background: #CBD5E1;
+    box-shadow: none;
+  }
+}

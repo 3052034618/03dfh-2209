@@ -1,0 +1,238 @@
+@use '@/styles/variables.scss' as *;
+
+.card {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.995);
+    box-shadow: 0 1rpx 6rpx rgba(15,23,42,0.06);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.timeBlock {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-sm;
+}
+
+.timeLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.timeValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.containerNoRow {
+  display: flex;
+  gap: $spacing-lg;
+  padding: $spacing-md 0;
+  border-top: 1px solid $color-divider;
+  border-bottom: 1px solid $color-divider;
+  margin-bottom: $spacing-md;
+}
+
+.containerNoBlock,
+.sealBlock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.label {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.containerNo {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  font-family: 'Menlo', 'Consolas', monospace;
+  letter-spacing: 1rpx;
+}
+
+.sealNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: #6366F1;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.infoGrid {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.infoItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+  border-radius: $radius-md;
+}
+
+.infoIconTemp,
+.infoIconCargo {
+  font-size: 36rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-bg-card;
+  border-radius: $radius-sm;
+  flex-shrink: 0;
+}
+
+.infoContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.infoLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.tempValue {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  @include text-ellipsis;
+}
+
+.infoValue {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.addressRow {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background-color: #F8FAFC;
+  border-radius: $radius-md;
+}
+
+.addressIcon {
+  font-size: 32rpx;
+  flex-shrink: 0;
+  padding-top: 2rpx;
+}
+
+.addressContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  min-width: 0;
+}
+
+.addressLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.addressText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  @include text-ellipsis-multi(2);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: $spacing-md;
+  border-top: 1px solid $color-divider;
+  gap: $spacing-md;
+}
+
+.deadline {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4rpx;
+}
+
+.deadlineIcon {
+  font-size: $font-size-sm;
+}
+
+.deadlineLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.deadlineValue {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+}
+
+.portName {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.deadlineUrgent {
+  .deadlineValue {
+    color: $color-error;
+  }
+}
+
+.deadlineUrgentText {
+  color: $color-error !important;
+}
+
+.inspectBtn {
+  @include button-reset;
+  height: $button-height-sm;
+  min-width: 160rpx;
+  padding: 0 $spacing-md;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+  color: $color-text-white;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  border-radius: $radius-button;
+  border: none;
+  transition: all $transition-base;
+  flex-shrink: 0;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
