@@ -27,6 +27,7 @@ export interface CheckItem {
   required: boolean
   status: CheckItemStatus
   value?: string | boolean | number
+  rawValue?: string
   passRange?: { min: number; max: number }
   failRange?: { min?: number; max?: number }
 }
@@ -64,6 +65,18 @@ export interface ExceptionReport {
   createdAt: string
   currentTemp?: number
   durationMinutes?: number
+  dispatchViewed?: boolean
+  dispatchViewedAt?: string
+  dispatchOpinion?: string
+  dispatchOpinionAt?: string
+  needSupplement?: 'photo' | 'temp' | 'both' | null
+  timeline?: ExceptionTimelineItem[]
+}
+
+export interface ExceptionTimelineItem {
+  time: string
+  label: string
+  done: boolean
 }
 
 export const TASK_STATUS_TEXT: Record<TaskStatus, string> = {

@@ -5,6 +5,7 @@ import classnames from 'classnames'
 import { INSPECTION_RESULT_TEXT, CheckItem } from '@/types'
 import { appStore } from '@/store'
 import { buildTempRanges, formatDateTime } from '@/utils'
+import { mockTasks } from '@/data/tasks'
 import styles from './index.module.scss'
 
 const INSPECTION_RESULT_LABEL: Record<string, string> = {
@@ -20,6 +21,16 @@ const parseNum = (v: any): number | undefined => {
     return isNaN(n) ? undefined : n
   }
   return undefined
+}
+
+const displayTemp = (item: CheckItem | undefined): string => {
+  if (!item) return '—'
+  if (item.rawValue !== undefined && item.rawValue !== null && item.rawValue !== '') {
+    return `${item.rawValue}℃`
+  }
+  if (typeof item.value === 'number') return `${item.value}℃`
+  if (typeof item.value === 'string' && item.value !== '') return `${item.value}℃`
+  return '—'
 }
 
 const InspectionDetailPage: React.FC = () => {
@@ -41,7 +52,8 @@ const InspectionDetailPage: React.FC = () => {
     )
   }
 
-  const requiredTemp = (record as any).requiredTemp as number | undefined
+  const task = mockTasks.find(t => t.id === record.taskId)
+  const requiredTemp = (record as any).requiredTemp ?? task?.requiredTemp
   const tempRanges = requiredTemp !== undefined ? buildTempRanges(requiredTemp) : null
 
   const thermoItem = record.items.find(i => i.id === 'thermo_reading')
@@ -132,7 +144,7 @@ const InspectionDetailPage: React.FC = () => {
               <View className={styles.itemValue}>
                 <Text className={styles.itemValueLabel}>录入值：</Text>
                 <Text className={styles.itemValueNum}>
-                  {itemValue !== undefined ? `${itemValue}${item.unit || ''}` : '—'}
+                  {displayTemp(item).replace('℃', '') ? `${displayTemp(item)}` : '—'}
                 </Text>
               </View>
               {requiredTemp !== undefined && (item.id === 'thermo_reading' || item.id === 'set_temp_match') && (
@@ -197,12 +209,12 @@ const InspectionDetailPage: React.FC = () => {
             <View className={classnames(styles.tempBlock, styles.tempBlockAct)}>
               <Text className={styles.tempLabel}>实际读数</Text>
               <Text className={styles.tempValue}>
-                {thermoValue !== undefined ? `${thermoValue}℃` : '—'}
+                {displayTemp(thermoItem)}
               </Text>
             </View>
             <View className={classnames(styles.tempBlock, styles.tempBlockDiff)}>
               <Text className={styles.tempLabel}>偏差</Text>
-              <Text className={styles.tempValue}>
+              <Text className={classnames(styles.tempValue, diffClass)}>
                 {diffValue !== undefined ? `${diffValue > 0 ? '+' : ''}${diffValue.toFixed(1)}℃` : '—'}
               </Text>
             </View>
@@ -211,7 +223,7 @@ const InspectionDetailPage: React.FC = () => {
             <View className={styles.itemValues} style={{ padding: 0 }}>
               <View className={styles.itemValue}>
                 <Text className={styles.itemValueLabel}>温控机设定值：</Text>
-                <Text className={styles.itemValueNum}>{settingValue}℃</Text>
+                <Text className={styles.itemValueNum}>{displayTemp(settingItem)}</Text>
               </View>
               <View className={styles.itemValue}>
                 <Text className={styles.itemValueLabel}>合格范围：</Text>

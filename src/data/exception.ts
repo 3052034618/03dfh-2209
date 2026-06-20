@@ -70,7 +70,19 @@ export const mockExceptionReports: ExceptionReport[] = [
     status: 'handling',
     createdAt: '2026-06-21T11:30:00',
     currentTemp: -12,
-    durationMinutes: 25
+    durationMinutes: 25,
+    dispatchViewed: true,
+    dispatchViewedAt: '2026-06-21T11:38:00',
+    dispatchOpinion: '已安排就近维修站进行除霜处理，司机请在安全区域等待，预计30分钟内到达。除霜后重新测温，若温度恢复正常可继续运输。',
+    dispatchOpinionAt: '2026-06-21T11:45:00',
+    needSupplement: 'temp',
+    timeline: [
+      { time: '2026-06-21T11:30:00', label: '司机提交异常上报', done: true },
+      { time: '2026-06-21T11:38:00', label: '调度已查看', done: true },
+      { time: '2026-06-21T11:45:00', label: '调度给出处置意见', done: true },
+      { time: '', label: '司机补充温度读数', done: false },
+      { time: '', label: '问题解决，关闭上报', done: false }
+    ]
   },
   {
     id: 'ER20260621002',
@@ -87,6 +99,14 @@ export const mockExceptionReports: ExceptionReport[] = [
     reporter: '李师傅',
     status: 'submitted',
     createdAt: '2026-06-21T13:15:00',
-    durationMinutes: 30
+    durationMinutes: 30,
+    dispatchViewed: false,
+    needSupplement: null,
+    timeline: [
+      { time: '2026-06-21T13:15:00', label: '司机提交异常上报', done: true },
+      { time: '', label: '调度已查看', done: false },
+      { time: '', label: '调度给出处置意见', done: false },
+      { time: '', label: '问题解决，关闭上报', done: false }
+    ]
   }
 ]

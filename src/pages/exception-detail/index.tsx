@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useState } from 'react'
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import {
@@ -7,19 +7,10 @@ import {
   EXCEPTION_TYPE_TEXT,
   EXCEPTION_ACTION_TEXT
 } from '@/types'
-import { appStore } from '@/store'
+import { appStore, useStoreSnapshot } from '@/store'
 import { formatDateTime, buildTempRanges } from '@/utils'
 import { mockTasks } from '@/data/tasks'
 import styles from './index.module.scss'
-
-const parseNum = (v: any): number | undefined => {
-  if (typeof v === 'number') return v
-  if (typeof v === 'string') {
-    const n = parseFloat(v)
-    return isNaN(n) ? undefined : n
-  }
-  return undefined
-}
 
 const STATUS_TEXT: Record<string, string> = {
   submitted: '已提交',
@@ -35,10 +26,36 @@ const TYPE_BADGE: Record<ExceptionType, { icon: string; color: string }> = {
   other: { icon: '⚠️', color: '#DBEAFE' }
 }
 
+const SUPPLEMENT_TEXT: Record<string, string> = {
+  photo: '📸 调度要求补充现场照片，请尽快拍摄上传',
+  temp: '🌡️ 调度要求补充温度读数，请记录当前温度并上报',
+  both: '📸🌡️ 调度要求补充现场照片和温度读数，请尽快完成'
+}
+
 const ExceptionDetailPage: React.FC = () => {
   const router = useRouter()
   const id = router.params.id
-  const report = useMemo(() => (id ? appStore.getExceptionById(id) : undefined), [id])
+  const [simulating, setSimulating] = useState(false)
+
+  const report = useStoreSnapshot(s => {
+    if (!id) return undefined
+    return s.exceptions.find(r => r.id === id)
+  })
+
+  const handleSimulateDispatch = useCallback(() => {
+    if (!id || simulating) return
+    setSimulating(true)
+    const now = new Date().toISOString()
+    const existing = appStore.getExceptionById(id)
+    const existingTimeline = existing?.timeline || []
+    appStore.updateExceptionStatus(id, {
+      dispatchViewed: true,
+      dispatchViewedAt: now,
+      status: 'handling',
+      timeline: [...existingTimeline, { time: now, label: '调度已查看', done: true }]
+    })
+    setTimeout(() => setSimulating(false), 600)
+  }, [id, simulating])
 
   if (!report) {
     return (
@@ -64,6 +81,9 @@ const ExceptionDetailPage: React.FC = () => {
     : undefined
 
   const tempRanges = requiredTemp !== undefined ? buildTempRanges(requiredTemp) : null
+
+  const timeline = report.timeline || []
+  const currentStepIndex = timeline.findIndex(item => !item.done)
 
   return (
     <View className={styles.page}>
@@ -102,7 +122,6 @@ const ExceptionDetailPage: React.FC = () => {
         </View>
       </View>
 
-      {/* 温度核对区 */}
       {(requiredTemp !== undefined || currentTemp !== undefined) && (
         <View className={styles.card}>
           <View className={styles.cardTitle}>🌡️ 温度快照</View>
@@ -152,7 +171,6 @@ const ExceptionDetailPage: React.FC = () => {
         </View>
       )}
 
-      {/* 基础信息 */}
       <View className={styles.card}>
         <View className={styles.cardTitle}>📋 上报信息</View>
         <View className={styles.infoRow}>
@@ -185,7 +203,6 @@ const ExceptionDetailPage: React.FC = () => {
         </View>
       </View>
 
-      {/* 现场照片 */}
       <View className={styles.card}>
         <View className={styles.cardTitle}>📷 现场照片（{report.photos?.length || 0}/3）</View>
         {report.photos && report.photos.length > 0 ? (
@@ -204,7 +221,6 @@ const ExceptionDetailPage: React.FC = () => {
         )}
       </View>
 
-      {/* 停车位置 */}
       <View className={styles.card}>
         <View className={styles.cardTitle}>📍 当前停车位置</View>
         {report.location ? (
@@ -219,7 +235,6 @@ const ExceptionDetailPage: React.FC = () => {
         )}
       </View>
 
-      {/* 已采取措施 */}
       <View className={styles.card}>
         <View className={styles.cardTitle}>✅ 已采取措施（{report.actions?.length || 0}项）</View>
         {report.actions && report.actions.length > 0 ? (
@@ -237,7 +252,6 @@ const ExceptionDetailPage: React.FC = () => {
         )}
       </View>
 
-      {/* 详细说明 */}
       {report.description && (
         <View className={styles.card}>
           <View className={styles.cardTitle}>📝 情况详细说明</View>
@@ -245,7 +259,74 @@ const ExceptionDetailPage: React.FC = () => {
         </View>
       )}
 
-      {/* 调度处理建议 */}
+      {timeline.length > 0 && (
+        <View className={styles.card}>
+          <View className={styles.cardTitle}>📊 处理进度</View>
+          <View className={styles.timeline}>
+            {timeline.map((item, idx) => {
+              const isDone = item.done
+              const isCurrent = idx === currentStepIndex
+              const isLast = idx === timeline.length - 1
+              return (
+                <View key={idx} className={styles.timelineItem}>
+                  <View className={styles.timelineLeft}>
+                    <View className={`${styles.timelineDot} ${isDone ? styles.timelineDotDone : isCurrent ? styles.timelineDotCurrent : styles.timelineDotPending}`} />
+                    {!isLast && <View className={`${styles.timelineLine} ${isDone ? styles.timelineLineDone : styles.timelineLinePending}`} />}
+                  </View>
+                  <View className={`${styles.timelineContent} ${isCurrent ? styles.timelineContentCurrent : ''}`}>
+                    <View className={styles.timelineHeader}>
+                      <Text className={`${styles.timelineLabel} ${isDone ? styles.timelineLabelDone : isCurrent ? styles.timelineLabelCurrent : styles.timelineLabelPending}`}>
+                        {item.label}
+                      </Text>
+                      {isCurrent && <View className={styles.timelineBadge}>进行中</View>}
+                    </View>
+                    <Text className={styles.timelineTime}>{formatDateTime(item.time)}</Text>
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      )}
+
+      {(report.dispatchViewed || report.dispatchOpinion) && (
+        <View className={styles.card}>
+          <View className={styles.cardTitle}>📡 调度反馈</View>
+          {report.dispatchViewed && (
+            <View className={styles.dispatchRow}>
+              <View className={styles.dispatchViewedTag}>
+                <Text className={styles.dispatchViewedIcon}>👀</Text>
+                <Text className={styles.dispatchViewedText}>调度已查看</Text>
+              </View>
+              {report.dispatchViewedAt && (
+                <Text className={styles.dispatchTime}>{formatDateTime(report.dispatchViewedAt)}</Text>
+              )}
+            </View>
+          )}
+          {report.dispatchOpinion && (
+            <View className={styles.opinionBlock}>
+              <Text className={styles.opinionLabel}>处置意见</Text>
+              <Text className={styles.opinionContent}>{report.dispatchOpinion}</Text>
+              {report.dispatchOpinionAt && (
+                <Text className={styles.dispatchTime}>{formatDateTime(report.dispatchOpinionAt)}</Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
+      {report.needSupplement && report.needSupplement !== null && (
+        <View className={styles.supplementCard}>
+          <View className={styles.supplementHeader}>
+            <Text className={styles.supplementIcon}>⚠️</Text>
+            <Text className={styles.supplementTitle}>需要补充信息</Text>
+          </View>
+          <Text className={styles.supplementDesc}>
+            {SUPPLEMENT_TEXT[report.needSupplement] || '调度要求补充相关信息，请尽快处理'}
+          </Text>
+        </View>
+      )}
+
       <View className={styles.card}>
         <View className={styles.cardTitle}>💡 调度处理建议</View>
         <View className={styles.infoRow}>
@@ -305,6 +386,16 @@ const ExceptionDetailPage: React.FC = () => {
           </Text>
         </View>
       </View>
+
+      {!report.dispatchViewed && (
+        <Button
+          className={styles.simulateBtn}
+          disabled={simulating}
+          onClick={handleSimulateDispatch}
+        >
+          {simulating ? '模拟中...' : '🔧 模拟调度查看'}
+        </Button>
+      )}
 
       <Button className={styles.backBtn} onClick={() => Taro.navigateBack()}>
         ← 返回上报列表

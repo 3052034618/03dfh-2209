@@ -252,6 +252,243 @@
   word-break: break-all;
 }
 
+.timeline {
+  padding-left: $spacing-sm;
+}
+
+.timelineItem {
+  display: flex;
+  min-height: 88rpx;
+}
+
+.timelineLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48rpx;
+  flex-shrink: 0;
+}
+
+.timelineDot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6rpx;
+}
+
+.timelineDotDone {
+  background-color: #16A34A;
+  box-shadow: 0 0 0 6rpx rgba(22, 163, 74, 0.15);
+}
+
+.timelineDotCurrent {
+  background-color: #2563EB;
+  box-shadow: 0 0 0 8rpx rgba(37, 99, 235, 0.2);
+  width: 28rpx;
+  height: 28rpx;
+  margin-top: 4rpx;
+}
+
+.timelineDotPending {
+  background-color: #FFFFFF;
+  border: 4rpx solid #CBD5E1;
+  box-shadow: none;
+}
+
+.timelineLine {
+  flex: 1;
+  width: 4rpx;
+  min-height: 40rpx;
+}
+
+.timelineLineDone {
+  background-color: #16A34A;
+}
+
+.timelineLinePending {
+  background: repeating-linear-gradient(
+    180deg,
+    #CBD5E1 0rpx,
+    #CBD5E1 8rpx,
+    transparent 8rpx,
+    transparent 16rpx
+  );
+}
+
+.timelineContent {
+  flex: 1;
+  padding-left: $spacing-md;
+  padding-bottom: $spacing-lg;
+}
+
+.timelineContentCurrent {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin: -8rpx 0 0 -8rpx;
+  padding-bottom: $spacing-md;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: 4rpx;
+}
+
+.timelineLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.timelineLabelDone {
+  color: $color-text-primary;
+}
+
+.timelineLabelCurrent {
+  color: #2563EB;
+  font-weight: $font-weight-bold;
+}
+
+.timelineLabelPending {
+  color: $color-text-tertiary;
+}
+
+.timelineBadge {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
+  color: #FFFFFF;
+  border-radius: $radius-round;
+  font-weight: $font-weight-semibold;
+}
+
+.timelineTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.dispatchRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-md 0;
+
+  &:not(:last-child) {
+    border-bottom: 1px dashed $color-divider;
+  }
+}
+
+.dispatchViewedTag {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-md;
+  background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+  border-radius: $radius-round;
+}
+
+.dispatchViewedIcon {
+  font-size: $font-size-sm;
+}
+
+.dispatchViewedText {
+  font-size: $font-size-sm;
+  color: #16A34A;
+  font-weight: $font-weight-semibold;
+}
+
+.dispatchTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.opinionBlock {
+  padding: $spacing-md;
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border-radius: $radius-md;
+  margin-top: $spacing-sm;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.opinionLabel {
+  font-size: $font-size-xs;
+  color: #2563EB;
+  font-weight: $font-weight-semibold;
+}
+
+.opinionContent {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: 1.7;
+  font-weight: $font-weight-medium;
+}
+
+.supplementCard {
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 2rpx solid #F59E0B;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: 0 4rpx 16rpx rgba(245, 158, 11, 0.15);
+}
+
+.supplementHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.supplementIcon {
+  font-size: $font-size-lg;
+}
+
+.supplementTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: #92400E;
+}
+
+.supplementDesc {
+  font-size: $font-size-sm;
+  color: #B45309;
+  line-height: 1.6;
+  font-weight: $font-weight-medium;
+}
+
+.simulateBtn {
+  height: $button-height-md;
+  background: linear-gradient(135deg, #2563EB 0%, #60A5FA 100%);
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  border-radius: $radius-button;
+  border: none;
+  margin-top: $spacing-sm;
+  margin-bottom: $spacing-sm;
+  width: 100%;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.99);
+  }
+
+  &::after {
+    border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.6;
+    background: linear-gradient(135deg, #94A3B8 0%, #CBD5E1 100%);
+  }
+}
+
 .empty {
   display: flex;
   flex-direction: column;

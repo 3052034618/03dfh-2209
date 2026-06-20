@@ -64,13 +64,15 @@ export const mockInspectionRecords: InspectionRecord[] = [
     items: defaultCheckItems.map((it, idx) => ({
       ...it,
       status: idx < 4 ? 'pass' : 'pending',
-      value: it.type === 'switch' ? true : (it.id === 'thermo_reading' ? -18 : -18)
+      value: it.type === 'switch' ? true : (it.id === 'thermo_reading' ? -18 : -18),
+      rawValue: it.id === 'thermo_reading' ? '-18.0' : (it.id === 'set_temp_match' ? '-18.0' : undefined)
     })),
     result: 'pass',
     operator: '张师傅',
     createdAt: '2026-06-21T08:45:00',
-    tempReading: -18
-  },
+    tempReading: -18,
+    requiredTemp: -18
+  } as any,
   {
     id: 'IR20260620089',
     taskId: 'T20260620089',
@@ -78,12 +80,14 @@ export const mockInspectionRecords: InspectionRecord[] = [
     items: defaultCheckItems.map((it, idx) => ({
       ...it,
       status: idx < 3 ? 'pass' : 'pending',
-      value: it.type === 'switch' ? (idx === 3 ? false : true) : (it.id === 'thermo_reading' ? 2 : 0)
+      value: it.type === 'switch' ? (idx === 3 ? false : true) : (it.id === 'thermo_reading' ? 2 : 0),
+      rawValue: it.id === 'thermo_reading' ? '2.0' : (it.id === 'set_temp_match' ? '0' : undefined)
     })),
     result: 'review',
     remark: '车载电源需再次确认，已临时接电',
     operator: '张师傅',
     createdAt: '2026-06-21T06:20:00',
-    tempReading: 2
-  }
+    tempReading: 2,
+    requiredTemp: 0
+  } as any
 ]

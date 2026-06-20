@@ -1,12 +1,13 @@
 import React from 'react'
 import Taro from '@tarojs/taro'
-import { InspectionRecord, ExceptionReport, CheckItem } from '@/types'
+import { InspectionRecord, ExceptionReport, CheckItem, ExceptionTimelineItem } from '@/types'
 import { mockInspectionRecords } from '@/data/inspection'
 import { mockExceptionReports } from '@/data/exception'
 
 const STORAGE_KEYS = {
   INSPECTIONS: 'reefer_inspection_records',
-  EXCEPTIONS: 'reefer_exception_reports'
+  EXCEPTIONS: 'reefer_exception_reports',
+  INSPECTION_DRAFT: 'reefer_inspection_draft'
 }
 
 const readStorage = <T>(key: string, fallback: T): T => {
@@ -27,6 +28,13 @@ const writeStorage = <T>(key: string, data: T) => {
   } catch (e) {
     console.warn('[Store] 写入存储失败:', key, e)
   }
+}
+
+interface DraftData {
+  taskId: string
+  containerNo: string
+  items: CheckItem[]
+  savedAt: string
 }
 
 interface AppStore {
@@ -80,6 +88,21 @@ const getExceptionById = (id: string): ExceptionReport | undefined => {
   return store.exceptions.find(r => r.id === id)
 }
 
+const getLatestExceptionByContainer = (containerNo: string): ExceptionReport | undefined => {
+  return store.exceptions
+    .filter(r => r.containerNo === containerNo)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+}
+
+const updateExceptionStatus = (id: string, updates: Partial<ExceptionReport>) => {
+  const idx = store.exceptions.findIndex(r => r.id === id)
+  if (idx === -1) return
+  store.exceptions[idx] = { ...store.exceptions[idx], ...updates }
+  writeStorage(STORAGE_KEYS.EXCEPTIONS, store.exceptions)
+  notifyListeners()
+  console.log('[Store] 更新异常状态:', id, updates)
+}
+
 const genId = (prefix: string): string => {
   const date = new Date()
   const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`
@@ -109,7 +132,6 @@ const buildAndSaveInspection = (params: {
     createdAt: new Date().toISOString(),
     tempReading
   }
-  // 额外保存要求温度，用于详情展示
   ;(record as any).requiredTemp = params.requiredTemp
   addInspection(record)
   return record
@@ -119,15 +141,51 @@ const buildAndSaveException = (params: Omit<ExceptionReport, 'id' | 'reporter' |
   reporter?: string
   status?: ExceptionReport['status']
 }): ExceptionReport => {
+  const now = new Date().toISOString()
+  const timeline: ExceptionTimelineItem[] = [
+    { time: now, label: '司机提交异常上报', done: true }
+  ]
   const report: ExceptionReport = {
     id: genId('ER'),
     reporter: params.reporter || '张师傅',
     status: params.status || 'submitted',
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    dispatchViewed: false,
+    needSupplement: null,
+    timeline,
     ...params
   }
   addException(report)
   return report
+}
+
+const saveInspectionDraft = (draft: DraftData) => {
+  try {
+    Taro.setStorageSync(STORAGE_KEYS.INSPECTION_DRAFT, { ...draft, savedAt: new Date().toISOString() })
+    console.log('[Store] 草稿已保存:', draft.containerNo)
+  } catch (e) {
+    console.warn('[Store] 保存草稿失败:', e)
+  }
+}
+
+const loadInspectionDraft = (): DraftData | null => {
+  try {
+    const data = Taro.getStorageSync(STORAGE_KEYS.INSPECTION_DRAFT)
+    if (data && data.taskId && data.items) return data as DraftData
+    return null
+  } catch (e) {
+    console.warn('[Store] 读取草稿失败:', e)
+    return null
+  }
+}
+
+const clearInspectionDraft = () => {
+  try {
+    Taro.removeStorageSync(STORAGE_KEYS.INSPECTION_DRAFT)
+    console.log('[Store] 草稿已清除')
+  } catch (e) {
+    console.warn('[Store] 清除草稿失败:', e)
+  }
 }
 
 export const appStore = {
@@ -139,8 +197,13 @@ export const appStore = {
   getLatestInspectionByContainer,
   addException,
   getExceptionById,
+  getLatestExceptionByContainer,
+  updateExceptionStatus,
   buildAndSaveInspection,
-  buildAndSaveException
+  buildAndSaveException,
+  saveInspectionDraft,
+  loadInspectionDraft,
+  clearInspectionDraft
 }
 
 export const useStoreSnapshot = <T>(selector: (s: { inspections: InspectionRecord[]; exceptions: ExceptionReport[] }) => T): T => {

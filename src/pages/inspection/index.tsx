@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { View, Text, Button, ScrollView } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import classnames from 'classnames'
@@ -18,10 +18,21 @@ const InspectionPage: React.FC = () => {
     []
   )
   const [selectedTask, setSelectedTask] = useState<Task | null>(availableTasks[0] || null)
-  const [checkItems, setCheckItems] = useState<CheckItem[]>(
-    defaultCheckItems.map(it => ({ ...it }))
-  )
+  const [checkItems, setCheckItems] = useState<CheckItem[]>(() => {
+    const draft = appStore.loadInspectionDraft()
+    if (draft && draft.items.length > 0) {
+      const matchedTask = availableTasks.find(t => t.id === draft.taskId)
+      if (matchedTask) {
+        setTimeout(() => {
+          console.log('[Inspection] 恢复草稿:', draft.containerNo, '保存时间:', draft.savedAt)
+        }, 0)
+        return draft.items
+      }
+    }
+    return defaultCheckItems.map(it => ({ ...it }))
+  })
   const [showTaskPicker, setShowTaskPicker] = useState(false)
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const evaluation = useMemo(() => {
     if (!selectedTask) return { result: 'review' as InspectionResult, issues: [] }
@@ -48,10 +59,33 @@ const InspectionPage: React.FC = () => {
     return { done: done.length, total: required.length }
   }, [checkItems])
 
+  const saveDraft = (items: CheckItem[], task: Task | null) => {
+    if (!task) return
+    const hasInput = items.some(i =>
+      (i.type === 'switch' && i.value === true) ||
+      (i.type === 'input' && i.value !== undefined && i.value !== '')
+    )
+    if (!hasInput) return
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(() => {
+      appStore.saveInspectionDraft({
+        taskId: task.id,
+        containerNo: task.containerNo,
+        items: JSON.parse(JSON.stringify(items))
+      })
+    }, 300)
+  }
+
   useEffect(() => {
     console.log('[Inspection] 当前任务:', selectedTask?.containerNo)
     console.log('[Inspection] 评估结果:', INSPECTION_RESULT_TEXT[result])
   }, [selectedTask, result])
+
+  useEffect(() => {
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    }
+  }, [])
 
   usePullDownRefresh(() => {
     setTimeout(() => {
@@ -69,7 +103,8 @@ const InspectionPage: React.FC = () => {
         setSelectedTask(task)
         const resetItems = defaultCheckItems.map(it => ({
           ...it,
-          value: undefined,
+          value: undefined as undefined,
+          rawValue: undefined as undefined,
           status: 'pending' as const
         }))
         setCheckItems(resetItems)
@@ -89,41 +124,49 @@ const InspectionPage: React.FC = () => {
     return undefined
   }
 
-  const handleItemChange = (id: string, value: boolean | number | string) => {
-    setCheckItems(prev => prev.map(item => {
-      if (item.id !== id) return item
-      let status: CheckItem['status'] = 'pending'
+  const handleItemChange = (id: string, value: boolean | number | string, rawValue?: string) => {
+    setCheckItems(prev => {
+      const next = prev.map(item => {
+        if (item.id !== id) return item
+        let status: CheckItem['status'] = 'pending'
 
-      if (item.type === 'switch') {
-        status = value === true ? 'pass' : 'fail'
-      } else if (item.type === 'input' && selectedTask) {
-        const numV = parseNumeric(value)
-        if (numV === undefined) {
-          status = 'pending'
-        } else if (id === 'thermo_reading' || id === 'set_temp_match') {
-          const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(selectedTask.requiredTemp)
-          if (numV >= passMin && numV <= passMax) {
-            status = 'pass'
-          } else if (numV < reviewMin || numV > reviewMax) {
-            status = 'fail'
-          } else {
-            status = 'fail'
-          }
-        } else if (item.passRange) {
-          const { min, max } = item.passRange
-          if (numV >= min && numV <= max) {
-            status = 'pass'
-          } else if (item.failRange) {
-            const fmin = item.failRange.min ?? -Infinity
-            const fmax = item.failRange.max ?? Infinity
-            status = (numV < fmin || numV > fmax) ? 'fail' : 'fail'
-          } else {
-            status = 'fail'
+        if (item.type === 'switch') {
+          status = value === true ? 'pass' : 'fail'
+        } else if (item.type === 'input' && selectedTask) {
+          const numV = parseNumeric(value)
+          if (numV === undefined) {
+            status = 'pending'
+          } else if (id === 'thermo_reading' || id === 'set_temp_match') {
+            const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(selectedTask.requiredTemp)
+            if (numV >= passMin && numV <= passMax) {
+              status = 'pass'
+            } else if (numV < reviewMin || numV > reviewMax) {
+              status = 'fail'
+            } else {
+              status = 'fail'
+            }
+          } else if (item.passRange) {
+            const { min, max } = item.passRange
+            if (numV >= min && numV <= max) {
+              status = 'pass'
+            } else if (item.failRange) {
+              const fmin = item.failRange.min ?? -Infinity
+              const fmax = item.failRange.max ?? Infinity
+              status = (numV < fmin || numV > fmax) ? 'fail' : 'fail'
+            } else {
+              status = 'fail'
+            }
           }
         }
-      }
-      return { ...item, value, status }
-    }))
+        const updated = { ...item, value, status }
+        if (item.type === 'input') {
+          (updated as any).rawValue = rawValue
+        }
+        return updated
+      })
+      saveDraft(next, selectedTask)
+      return next
+    })
   }
 
   const handleReset = () => {
@@ -134,10 +177,12 @@ const InspectionPage: React.FC = () => {
         if (res.confirm) {
           const resetItems = defaultCheckItems.map(it => ({
             ...it,
-            value: undefined,
+            value: undefined as undefined,
+            rawValue: undefined as undefined,
             status: 'pending' as const
           }))
           setCheckItems(resetItems)
+          appStore.clearInspectionDraft()
           Taro.showToast({ title: '已重置', icon: 'success' })
         }
       }
@@ -197,10 +242,12 @@ const InspectionPage: React.FC = () => {
             console.log('[Inspection] 检查记录已保存:', saved.id, saved.containerNo)
             const resetItems = defaultCheckItems.map(it => ({
               ...it,
-              value: undefined,
+              value: undefined as undefined,
+              rawValue: undefined as undefined,
               status: 'pending' as const
             }))
             setCheckItems(resetItems)
+            appStore.clearInspectionDraft()
           }, 800)
         } catch (e) {
           Taro.hideLoading()
@@ -344,12 +391,15 @@ const HistoryList: React.FC = () => {
       ) : (
         inspections.map(rec => {
           const thermoItem = rec.items.find(i => i.id === 'thermo_reading')
-          const tempV = thermoItem?.value
-          const tempStr = typeof tempV === 'number' ? `${tempV}℃` : (typeof tempV === 'string' && tempV ? `${tempV}℃` : '未录入')
+          const tempDisplay = thermoItem?.rawValue
+            ? thermoItem.rawValue
+            : (typeof thermoItem?.value === 'number' ? `${thermoItem.value}` : (typeof thermoItem?.value === 'string' && thermoItem.value ? thermoItem.value : ''))
+          const tempStr = tempDisplay ? `${tempDisplay}℃` : '未录入'
+          const tempNum = typeof thermoItem?.value === 'number' ? thermoItem.value : undefined
           const reqTemp = (rec as any).requiredTemp
           let diffText = ''
-          if (typeof tempV === 'number' && typeof reqTemp === 'number') {
-            const diff = tempV - reqTemp
+          if (tempNum !== undefined && typeof reqTemp === 'number') {
+            const diff = tempNum - reqTemp
             const sign = diff > 0 ? '+' : ''
             diffText = `（${sign}${diff.toFixed(1)}℃）`
           }

@@ -216,12 +216,14 @@ const ExceptionPage: React.FC = () => {
             })
             setTimeout(() => {
               Taro.hideLoading()
-              Taro.showToast({ title: '上报成功', icon: 'success' })
               console.log('[Exception] 上报已保存:', saved.id, saved.containerNo)
               setSelectedReason('')
               setSelectedActions([])
               setPhotos([])
               setDescription('')
+              Taro.navigateTo({
+                url: `/pages/exception-detail/index?id=${saved.id}`
+              })
             }, 1000)
           } catch (e) {
             Taro.hideLoading()
@@ -521,6 +523,32 @@ const HistoryList: React.FC = () => {
                 </Text>
               )}
             </View>
+            {rep.dispatchViewed && (
+              <View className={styles.historyMeta}>
+                <Text className={styles.historyMetaText} style={{ color: '#16A34A', fontWeight: 600 }}>
+                  👀 调度已查看
+                </Text>
+                {rep.dispatchViewedAt && (
+                  <Text className={styles.historyMetaText}>
+                    · {formatDateTime(rep.dispatchViewedAt)}
+                  </Text>
+                )}
+              </View>
+            )}
+            {!rep.dispatchViewed && rep.status === 'submitted' && (
+              <View className={styles.historyMeta}>
+                <Text className={styles.historyMetaText} style={{ color: '#94A3B8' }}>
+                  ⏳ 等待调度查看
+                </Text>
+              </View>
+            )}
+            {rep.needSupplement && rep.needSupplement !== null && (
+              <View className={styles.historyMeta}>
+                <Text className={styles.historyMetaText} style={{ color: '#EA580C', fontWeight: 600 }}>
+                  ⚠️ 需补充{rep.needSupplement === 'photo' ? '照片' : rep.needSupplement === 'temp' ? '温度' : '照片和温度'}
+                </Text>
+              </View>
+            )}
             {rep.location && (
               <View className={styles.historyMeta}>
                 <Text className={styles.historyMetaText}>📍 {rep.location}</Text>

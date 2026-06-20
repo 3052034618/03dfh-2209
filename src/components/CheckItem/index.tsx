@@ -6,7 +6,7 @@ import styles from './index.module.scss'
 
 interface CheckItemProps {
   item: CheckItemType
-  onChange: (id: string, value: boolean | number | string) => void
+  onChange: (id: string, value: boolean | number | string, rawValue?: string) => void
   referenceValue?: number
   referenceLabel?: string
   dynamicPassRange?: { min: number; max: number }
@@ -24,6 +24,9 @@ const CheckItemComp: React.FC<CheckItemProps> = ({
   const checked = item.value === true
 
   const parseValueForDisplay = (): string => {
+    if (item.type === 'input' && item.rawValue !== undefined && item.rawValue !== null && item.rawValue !== '') {
+      return item.rawValue
+    }
     if (item.value === undefined || item.value === null) return ''
     if (typeof item.value === 'boolean') return ''
     return String(item.value)
@@ -108,19 +111,19 @@ const CheckItemComp: React.FC<CheckItemProps> = ({
                   onInput={e => {
                     const v = e.detail.value
                     if (v === '') {
-                      onChange(item.id, '')
+                      onChange(item.id, '', '')
                       return
                     }
                     if (!/^-?\d*\.?\d*$/.test(v)) return
                     if (v === '-' || v === '.' || v === '-.' || v.endsWith('.')) {
-                      onChange(item.id, v)
+                      onChange(item.id, v, v)
                       return
                     }
                     const n = parseFloat(v)
                     if (!isNaN(n)) {
-                      onChange(item.id, n)
+                      onChange(item.id, n, v)
                     } else {
-                      onChange(item.id, v)
+                      onChange(item.id, v, v)
                     }
                   }}
                 />
