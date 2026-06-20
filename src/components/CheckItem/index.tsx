@@ -22,7 +22,22 @@ const CheckItemComp: React.FC<CheckItemProps> = ({
   dynamicFailRange
 }) => {
   const checked = item.value === true
-  const numValue = typeof item.value === 'number' ? item.value : undefined
+
+  const parseValueForDisplay = (): string => {
+    if (item.value === undefined || item.value === null) return ''
+    if (typeof item.value === 'boolean') return ''
+    return String(item.value)
+  }
+
+  const parseValueForNum = (): number | undefined => {
+    if (item.value === undefined || item.value === null) return undefined
+    if (typeof item.value === 'boolean') return undefined
+    const n = parseFloat(String(item.value))
+    return isNaN(n) ? undefined : n
+  }
+
+  const displayValue = parseValueForDisplay()
+  const numValue = parseValueForNum()
 
   const passRange = dynamicPassRange || item.passRange
   const failRange = dynamicFailRange || item.failRange
@@ -87,17 +102,26 @@ const CheckItemComp: React.FC<CheckItemProps> = ({
                 <Input
                   type='text'
                   className={styles.input}
-                  value={numValue !== undefined ? String(numValue) : ''}
+                  value={displayValue}
                   placeholder='请输入实际读数（如 -18）'
+                  confirmType='done'
                   onInput={e => {
-                    const v = e.detail.value.trim()
-                    if (v === '' || v === '-') {
+                    const v = e.detail.value
+                    if (v === '') {
                       onChange(item.id, '')
                       return
                     }
                     if (!/^-?\d*\.?\d*$/.test(v)) return
+                    if (v === '-' || v === '.' || v === '-.' || v.endsWith('.')) {
+                      onChange(item.id, v)
+                      return
+                    }
                     const n = parseFloat(v)
-                    if (!isNaN(n)) onChange(item.id, n)
+                    if (!isNaN(n)) {
+                      onChange(item.id, n)
+                    } else {
+                      onChange(item.id, v)
+                    }
                   }}
                 />
                 {item.unit && <Text className={styles.inputUnit}>{item.unit}</Text>}

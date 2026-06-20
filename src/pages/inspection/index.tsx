@@ -4,8 +4,9 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import classnames from 'classnames'
 import { Task, CheckItem, InspectionResult, INSPECTION_RESULT_TEXT } from '@/types'
 import { mockTasks } from '@/data/tasks'
-import { defaultCheckItems, mockInspectionRecords } from '@/data/inspection'
+import { defaultCheckItems } from '@/data/inspection'
 import { evaluateInspection, formatDateTime, buildTempRanges } from '@/utils'
+import { useStoreSnapshot, appStore } from '@/store'
 import CheckItemComp from '@/components/CheckItem'
 import SectionCard from '@/components/SectionCard'
 import StatusBadge from '@/components/StatusBadge'
@@ -79,6 +80,15 @@ const InspectionPage: React.FC = () => {
     })
   }
 
+  const parseNumeric = (v: any): number | undefined => {
+    if (typeof v === 'number') return v
+    if (typeof v === 'string') {
+      const n = parseFloat(v)
+      return isNaN(n) ? undefined : n
+    }
+    return undefined
+  }
+
   const handleItemChange = (id: string, value: boolean | number | string) => {
     setCheckItems(prev => prev.map(item => {
       if (item.id !== id) return item
@@ -86,24 +96,27 @@ const InspectionPage: React.FC = () => {
 
       if (item.type === 'switch') {
         status = value === true ? 'pass' : 'fail'
-      } else if (item.type === 'input' && typeof value === 'number' && selectedTask) {
-        if (id === 'thermo_reading' || id === 'set_temp_match') {
+      } else if (item.type === 'input' && selectedTask) {
+        const numV = parseNumeric(value)
+        if (numV === undefined) {
+          status = 'pending'
+        } else if (id === 'thermo_reading' || id === 'set_temp_match') {
           const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(selectedTask.requiredTemp)
-          if (value >= passMin && value <= passMax) {
+          if (numV >= passMin && numV <= passMax) {
             status = 'pass'
-          } else if (value < reviewMin || value > reviewMax) {
+          } else if (numV < reviewMin || numV > reviewMax) {
             status = 'fail'
           } else {
             status = 'fail'
           }
         } else if (item.passRange) {
           const { min, max } = item.passRange
-          if (value >= min && value <= max) {
+          if (numV >= min && numV <= max) {
             status = 'pass'
           } else if (item.failRange) {
             const fmin = item.failRange.min ?? -Infinity
             const fmax = item.failRange.max ?? Infinity
-            status = (value < fmin || value > fmax) ? 'fail' : 'fail'
+            status = (numV < fmin || numV > fmax) ? 'fail' : 'fail'
           } else {
             status = 'fail'
           }
@@ -150,15 +163,17 @@ const InspectionPage: React.FC = () => {
   }
 
   const doSubmit = () => {
+    if (!selectedTask) return
+
     const titleMap: Record<InspectionResult, string> = {
       pass: '检查通过 · 可发车',
       review: '部分异常 · 需复核',
       reject: '检查不通过 · 禁止发车'
     }
     const contentMap: Record<InspectionResult, string> = {
-      pass: `箱体 ${selectedTask?.containerNo} 检查通过，温度正常，可安全发车。`,
-      review: `箱体 ${selectedTask?.containerNo} 存在需复核项：\n${issues.slice(0, 3).join('\n')}\n请联系调度确认后再决定。`,
-      reject: `箱体 ${selectedTask?.containerNo} 存在严重问题：\n${issues.slice(0, 3).join('\n')}\n禁止发车，请立即处理。`
+      pass: `箱体 ${selectedTask.containerNo} 检查通过，温度正常，可安全发车。`,
+      review: `箱体 ${selectedTask.containerNo} 存在需复核项：\n${issues.slice(0, 3).join('\n')}\n请联系调度确认后再决定。`,
+      reject: `箱体 ${selectedTask.containerNo} 存在严重问题：\n${issues.slice(0, 3).join('\n')}\n禁止发车，请立即处理。`
     }
     Taro.showModal({
       title: titleMap[result],
@@ -167,16 +182,31 @@ const InspectionPage: React.FC = () => {
       showCancel: false,
       success: () => {
         Taro.showLoading({ title: '提交中...' })
-        setTimeout(() => {
-          Taro.hideLoading()
-          Taro.showToast({ title: '检查已提交', icon: 'success' })
-          console.log('[Inspection] 检查记录提交:', {
-            taskId: selectedTask?.id,
-            containerNo: selectedTask?.containerNo,
+        try {
+          const saved = appStore.buildAndSaveInspection({
+            taskId: selectedTask.id,
+            containerNo: selectedTask.containerNo,
+            items: checkItems,
             result,
-            items: checkItems
+            requiredTemp: selectedTask.requiredTemp,
+            remark: issues.length > 0 ? issues.join('；') : undefined
           })
-        }, 800)
+          setTimeout(() => {
+            Taro.hideLoading()
+            Taro.showToast({ title: '检查已提交', icon: 'success' })
+            console.log('[Inspection] 检查记录已保存:', saved.id, saved.containerNo)
+            const resetItems = defaultCheckItems.map(it => ({
+              ...it,
+              value: undefined,
+              status: 'pending' as const
+            }))
+            setCheckItems(resetItems)
+          }, 800)
+        } catch (e) {
+          Taro.hideLoading()
+          Taro.showToast({ title: '提交失败，请重试', icon: 'none' })
+          console.error('[Inspection] 提交失败:', e)
+        }
       }
     })
   }
@@ -279,39 +309,7 @@ const InspectionPage: React.FC = () => {
           ))}
         </SectionCard>
 
-        <View className={styles.historySection}>
-          <Text className={styles.historyTitle}>近期检查记录</Text>
-          {mockInspectionRecords.length === 0 ? (
-            <View className={styles.emptyHint}>
-              <Text className={styles.emptyHintText}>暂无历史检查记录</Text>
-            </View>
-          ) : (
-            mockInspectionRecords.map(rec => (
-              <View
-                key={rec.id}
-                className={styles.historyItem}
-                onClick={() => Taro.navigateTo({
-                  url: `/pages/inspection-detail/index?id=${rec.id}`
-                })}
-              >
-                <View className={styles.historyLeft}>
-                  <Text className={styles.historyNo}>{rec.containerNo}</Text>
-                  <Text className={styles.historyTime}>
-                    {rec.operator} · {formatDateTime(rec.createdAt)}
-                  </Text>
-                </View>
-                <StatusBadge
-                  text={INSPECTION_RESULT_TEXT[rec.result]}
-                  color={
-                    rec.result === 'pass' ? 'green'
-                      : rec.result === 'review' ? 'orange' : 'red'
-                  }
-                  size='md'
-                />
-              </View>
-            ))
-          )}
-        </View>
+        <HistoryList />
       </ScrollView>
 
       <View className={styles.bottomBar}>
@@ -329,6 +327,68 @@ const InspectionPage: React.FC = () => {
           提交检查结果
         </Button>
       </View>
+    </View>
+  )
+}
+
+const HistoryList: React.FC = () => {
+  const inspections = useStoreSnapshot(s => s.inspections)
+
+  return (
+    <View className={styles.historySection}>
+      <Text className={styles.historyTitle}>近期检查记录（共 {inspections.length} 条）</Text>
+      {inspections.length === 0 ? (
+        <View className={styles.emptyHint}>
+          <Text className={styles.emptyHintText}>暂无历史检查记录</Text>
+        </View>
+      ) : (
+        inspections.map(rec => {
+          const thermoItem = rec.items.find(i => i.id === 'thermo_reading')
+          const tempV = thermoItem?.value
+          const tempStr = typeof tempV === 'number' ? `${tempV}℃` : (typeof tempV === 'string' && tempV ? `${tempV}℃` : '未录入')
+          const reqTemp = (rec as any).requiredTemp
+          let diffText = ''
+          if (typeof tempV === 'number' && typeof reqTemp === 'number') {
+            const diff = tempV - reqTemp
+            const sign = diff > 0 ? '+' : ''
+            diffText = `（${sign}${diff.toFixed(1)}℃）`
+          }
+          return (
+            <View
+              key={rec.id}
+              className={styles.historyItem}
+              onClick={() => Taro.navigateTo({
+                url: `/pages/inspection-detail/index?id=${rec.id}`
+              })}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text className={styles.historyNo}>{rec.containerNo}</Text>
+                  <StatusBadge
+                    text={INSPECTION_RESULT_TEXT[rec.result]}
+                    color={
+                      rec.result === 'pass' ? 'green'
+                        : rec.result === 'review' ? 'orange' : 'red'
+                    }
+                    size='md'
+                  />
+                </View>
+                <View style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <Text style={{ fontSize: 24, color: '#2563EB', fontWeight: 600 }}>
+                    温控：{tempStr}{diffText}
+                  </Text>
+                  {typeof reqTemp === 'number' && (
+                    <Text style={{ fontSize: 22, color: '#64748B' }}>要求 {reqTemp}℃</Text>
+                  )}
+                </View>
+                <Text className={styles.historyTime} style={{ marginTop: 8 }}>
+                  {rec.operator} · {formatDateTime(rec.createdAt)}
+                </Text>
+              </View>
+            </View>
+          )
+        })
+      )}
     </View>
   )
 }

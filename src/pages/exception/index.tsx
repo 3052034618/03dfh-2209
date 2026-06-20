@@ -6,11 +6,13 @@ import {
   ExceptionType,
   ExceptionAction,
   EXCEPTION_TYPE_TEXT,
-  EXCEPTION_ACTION_TEXT
+  EXCEPTION_ACTION_TEXT,
+  Task
 } from '@/types'
 import { mockTasks } from '@/data/tasks'
-import { exceptionReasons, exceptionActionList, mockExceptionReports } from '@/data/exception'
-import { formatDateTime } from '@/utils'
+import { exceptionReasons, exceptionActionList } from '@/data/exception'
+import { formatDateTime, buildTempRanges } from '@/utils'
+import { useStoreSnapshot, appStore } from '@/store'
 import SectionCard from '@/components/SectionCard'
 import StatusBadge from '@/components/StatusBadge'
 import styles from './index.module.scss'
@@ -23,6 +25,15 @@ const TYPE_CONFIG: { key: ExceptionType; icon: string; hint: string }[] = [
   { key: 'other', icon: '⚠️', hint: '其他现场异常情况' }
 ]
 
+const parseNum = (v: any): number | undefined => {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') {
+    const n = parseFloat(v)
+    return isNaN(n) ? undefined : n
+  }
+  return undefined
+}
+
 const ExceptionPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<ExceptionType>('temp_deviation')
   const [selectedReason, setSelectedReason] = useState<string>('')
@@ -31,8 +42,23 @@ const ExceptionPage: React.FC = () => {
   const [location, setLocation] = useState<string>('正在定位...')
   const [locating, setLocating] = useState<boolean>(true)
   const [description, setDescription] = useState<string>('')
-  const [selectedTask, setSelectedTask] = useState<string>(mockTasks[0]?.containerNo || '')
+  const availableTasks = useMemo(() =>
+    mockTasks.filter(t => t.status === 'shipping' || t.status === 'picking'),
+    []
+  )
+  const [selectedTaskObj, setSelectedTaskObj] = useState<Task | null>(availableTasks[0] || null)
   const MAX_DESC = 500
+
+  const latestInspection = useMemo(() => {
+    if (!selectedTaskObj) return null
+    return appStore.getLatestInspectionByContainer(selectedTaskObj.containerNo)
+  }, [selectedTaskObj])
+
+  const latestTempReading = useMemo(() => {
+    if (!latestInspection) return undefined
+    const thermo = latestInspection.items.find(i => i.id === 'thermo_reading')
+    return parseNum(thermo?.value)
+  }, [latestInspection])
 
   const currentReasons = useMemo(() => exceptionReasons[selectedType], [selectedType])
 
@@ -41,7 +67,8 @@ const ExceptionPage: React.FC = () => {
       && selectedActions.length > 0
       && location
       && location !== '正在定位...'
-  }, [selectedReason, selectedActions, location])
+      && !!selectedTaskObj
+  }, [selectedReason, selectedActions, location, selectedTaskObj])
 
   useEffect(() => {
     console.log('[Exception] 页面加载，开始定位')
@@ -114,13 +141,21 @@ const ExceptionPage: React.FC = () => {
   }
 
   const handleSelectTask = () => {
-    const list = mockTasks
-      .filter(t => t.status === 'shipping' || t.status === 'picking')
-      .map(t => t.containerNo)
     Taro.showActionSheet({
-      itemList: list,
+      itemList: availableTasks.map(t => {
+        const req = t.requiredTemp
+        const insp = appStore.getLatestInspectionByContainer(t.containerNo)
+        let tempStr = ''
+        if (insp) {
+          const thermo = parseNum(insp.items.find(i => i.id === 'thermo_reading')?.value)
+          if (thermo !== undefined) tempStr = ` · 最近${thermo}℃`
+        }
+        return `${t.containerNo} · ${t.customer} · 要求${req}℃${tempStr}`
+      }),
       success: res => {
-        setSelectedTask(list[res.tapIndex])
+        const task = availableTasks[res.tapIndex]
+        setSelectedTaskObj(task)
+        console.log('[Exception] 切换任务:', task.containerNo)
       }
     })
   }
@@ -142,8 +177,9 @@ const ExceptionPage: React.FC = () => {
   }
 
   const handleSubmit = () => {
-    if (!canSubmit) {
+    if (!canSubmit || !selectedTaskObj) {
       const missing: string[] = []
+      if (!selectedTaskObj) missing.push('选择关联任务')
       if (!selectedReason) missing.push('选择异常原因')
       if (selectedActions.length === 0) missing.push('选择已采取动作')
       if (!location || location === '正在定位...') missing.push('获取停车位置')
@@ -151,30 +187,47 @@ const ExceptionPage: React.FC = () => {
       return
     }
 
+    const containerNo = selectedTaskObj.containerNo
+    const tempNow = latestTempReading
+
     Taro.showModal({
       title: '确认提交异常上报',
-      content: `类型：${EXCEPTION_TYPE_TEXT[selectedType]}\n原因：${selectedReason}\n位置：${location}\n已采取 ${selectedActions.length} 项措施\n\n提交后调度端将实时收到通知，请保持电话畅通。`,
+      content: `箱号：${containerNo}${tempNow !== undefined ? `\n最近温度：${tempNow}℃（要求${selectedTaskObj.requiredTemp}℃）` : ''}\n类型：${EXCEPTION_TYPE_TEXT[selectedType]}\n原因：${selectedReason}\n位置：${location}\n已采取 ${selectedActions.length} 项措施\n\n提交后调度端将实时收到通知，请保持电话畅通。`,
       confirmText: '确认上报',
       confirmColor: '#DC2626',
       success: res => {
         if (res.confirm) {
           Taro.showLoading({ title: '上报中...' })
-          setTimeout(() => {
-            Taro.hideLoading()
-            Taro.showToast({ title: '上报成功', icon: 'success' })
-            console.log('[Exception] 上报提交:', {
-              containerNo: selectedTask,
+          try {
+            const saved = appStore.buildAndSaveException({
+              taskId: selectedTaskObj.id,
+              containerNo,
               type: selectedType,
               reason: selectedReason,
+              photos,
+              location,
               actions: selectedActions,
-              photos: photos.length,
-              location
+              description: [
+                description,
+                tempNow !== undefined ? `【温度快照】最近检查${tempNow}℃，要求${selectedTaskObj.requiredTemp}℃` : '',
+                latestInspection ? `【关联检查】${latestInspection.id}（${formatDateTime(latestInspection.createdAt)}）` : ''
+              ].filter(Boolean).join('\n'),
+              currentTemp: tempNow
             })
-            setSelectedReason('')
-            setSelectedActions([])
-            setPhotos([])
-            setDescription('')
-          }, 1000)
+            setTimeout(() => {
+              Taro.hideLoading()
+              Taro.showToast({ title: '上报成功', icon: 'success' })
+              console.log('[Exception] 上报已保存:', saved.id, saved.containerNo)
+              setSelectedReason('')
+              setSelectedActions([])
+              setPhotos([])
+              setDescription('')
+            }, 1000)
+          } catch (e) {
+            Taro.hideLoading()
+            Taro.showToast({ title: '上报失败，请重试', icon: 'none' })
+            console.error('[Exception] 上报失败:', e)
+          }
         }
       }
     })
@@ -194,7 +247,7 @@ const ExceptionPage: React.FC = () => {
           </Text>
         </View>
 
-        <View className={styles.sectionLabel}>关联集装箱</View>
+        <View className={styles.sectionLabel}>① 关联集装箱</View>
         <View
           className={classnames(
             styles.locationCard,
@@ -215,15 +268,39 @@ const ExceptionPage: React.FC = () => {
           }}>📦</View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ fontSize: '28rpx', fontWeight: 600, color: '#0F172A', fontFamily: 'Menlo, Consolas, monospace' }}>
-              {selectedTask}
+              {selectedTaskObj?.containerNo || '请选择任务'}
             </Text>
-            <Text style={{ fontSize: '22rpx', color: '#94A3B8', marginTop: '4rpx', display: 'block' }}>
+            {selectedTaskObj && (
+              <View style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                <Text style={{ fontSize: 22, color: '#2563EB', fontWeight: 600 }}>
+                  要求 {selectedTaskObj.requiredTemp}℃
+                </Text>
+                {latestTempReading !== undefined && (() => {
+                  const diff = latestTempReading - selectedTaskObj.requiredTemp
+                  const diffText = `${diff > 0 ? '+' : ''}${diff.toFixed(1)}℃`
+                  const diffColor = Math.abs(diff) <= 2 ? '#16A34A' : Math.abs(diff) <= 5 ? '#EA580C' : '#DC2626'
+                  const { passMin, passMax } = buildTempRanges(selectedTaskObj.requiredTemp)
+                  return (
+                    <>
+                      <Text style={{ fontSize: 22, color: '#475569' }}>
+                        最近测温 <Text style={{ fontWeight: 700, color: diffColor }}>{latestTempReading}℃</Text>
+                      </Text>
+                      <Text style={{ fontSize: 22, color: diffColor, fontWeight: 600 }}>{diffText}</Text>
+                      <Text style={{ fontSize: 20, color: '#94A3B8' }}>
+                        正常{passMin}~{passMax}℃
+                      </Text>
+                    </>
+                  )
+                })()}
+              </View>
+            )}
+            <Text style={{ fontSize: '22rpx', color: '#94A3B8', marginTop: '8rpx', display: 'block' }}>
               点击切换其他任务
             </Text>
           </View>
         </View>
 
-        <Text className={styles.sectionLabel}>① 选择异常类型</Text>
+        <Text className={styles.sectionLabel}>② 选择异常类型</Text>
         <View className={styles.typeGrid}>
           {TYPE_CONFIG.map(cfg => {
             const active = selectedType === cfg.key
@@ -249,7 +326,7 @@ const ExceptionPage: React.FC = () => {
           })}
         </View>
 
-        <Text className={styles.sectionLabel}>② 选择具体原因</Text>
+        <Text className={styles.sectionLabel}>③ 选择具体原因</Text>
         <View className={styles.reasonList}>
           {currentReasons.map(reason => {
             const checked = selectedReason === reason
@@ -271,7 +348,7 @@ const ExceptionPage: React.FC = () => {
           })}
         </View>
 
-        <Text className={styles.sectionLabel}>③ 补充现场照片（最多3张）</Text>
+        <Text className={styles.sectionLabel}>④ 补充现场照片（最多3张）</Text>
         <View className={styles.photoGrid}>
           {photos.map((photo, idx) => (
             <View key={idx} className={styles.photoItem}>
@@ -296,7 +373,7 @@ const ExceptionPage: React.FC = () => {
           )}
         </View>
 
-        <Text className={styles.sectionLabel}>④ 当前停车位置</Text>
+        <Text className={styles.sectionLabel}>⑤ 当前停车位置</Text>
         <View className={styles.locationCard}>
           <View className={styles.locationIcon}>📍</View>
           <View className={styles.locationContent}>
@@ -311,7 +388,7 @@ const ExceptionPage: React.FC = () => {
           </Button>
         </View>
 
-        <Text className={styles.sectionLabel}>⑤ 已采取的措施（可多选）</Text>
+        <Text className={styles.sectionLabel}>⑥ 已采取的措施（可多选）</Text>
         <View className={styles.actionGrid}>
           {exceptionActionList.map(action => {
             const active = selectedActions.includes(action)
@@ -327,7 +404,7 @@ const ExceptionPage: React.FC = () => {
           })}
         </View>
 
-        <Text className={styles.sectionLabel}>⑥ 详细情况说明（可选）</Text>
+        <Text className={styles.sectionLabel}>⑦ 详细情况说明（可选）</Text>
         <View className={styles.descCard}>
           <Textarea
             className={styles.descTextarea}
@@ -345,69 +422,7 @@ const ExceptionPage: React.FC = () => {
           </View>
         </View>
 
-        <View className={styles.historySection}>
-          <Text className={styles.historyTitle}>近期上报记录</Text>
-          {mockExceptionReports.length === 0 ? (
-            <SectionCard>
-              <Text style={{ fontSize: '24rpx', color: '#94A3B8', textAlign: 'center', padding: '32rpx 0' }}>
-                暂无上报记录
-              </Text>
-            </SectionCard>
-          ) : (
-            mockExceptionReports.map(rep => (
-              <View
-                key={rep.id}
-                className={styles.historyCard}
-                onClick={() => Taro.navigateTo({
-                  url: `/pages/exception-detail/index?id=${rep.id}`
-                })}
-              >
-                <View className={styles.historyHeader}>
-                  <View className={styles.historyLeft}>
-                    <StatusBadge
-                      text={EXCEPTION_TYPE_TEXT[rep.type]}
-                      color={
-                        rep.type === 'power_failure' || rep.type === 'temp_deviation' ? 'red'
-                          : rep.type === 'equipment_malfunction' ? 'orange'
-                          : rep.type === 'door_seal' ? 'orange' : 'blue'
-                      }
-                      size='sm'
-                    />
-                    <Text className={styles.historyNo}>{rep.containerNo}</Text>
-                  </View>
-                  <StatusBadge
-                    text={
-                      rep.status === 'submitted' ? '已提交'
-                        : rep.status === 'handling' ? '处理中' : '已解决'
-                    }
-                    color={
-                      rep.status === 'submitted' ? 'blue'
-                        : rep.status === 'handling' ? 'orange' : 'green'
-                    }
-                    size='sm'
-                  />
-                </View>
-                <View className={styles.historyMeta}>
-                  <Text className={styles.historyMetaText}>💬 {rep.reason}</Text>
-                </View>
-                <View className={styles.historyMeta}>
-                  <Text className={styles.historyMetaText}>
-                    {formatDateTime(rep.createdAt)}
-                  </Text>
-                  <Text className={styles.historyMetaText}>
-                    · {rep.reporter}
-                  </Text>
-                  {rep.durationMinutes && (
-                    <Text className={styles.historyMetaText}>
-                      · 持续 {rep.durationMinutes} 分钟
-                    </Text>
-                  )}
-                </View>
-                <Text className={styles.historyDesc}>{rep.description}</Text>
-              </View>
-            ))
-          )}
-        </View>
+        <HistoryList />
       </ScrollView>
 
       <View className={styles.bottomBar}>
@@ -425,6 +440,96 @@ const ExceptionPage: React.FC = () => {
           🚨 立即上报调度
         </Button>
       </View>
+    </View>
+  )
+}
+
+const HistoryList: React.FC = () => {
+  const exceptions = useStoreSnapshot(s => s.exceptions)
+
+  return (
+    <View className={styles.historySection}>
+      <Text className={styles.historyTitle}>近期上报记录（共 {exceptions.length} 条）</Text>
+      {exceptions.length === 0 ? (
+        <SectionCard>
+          <Text style={{ fontSize: 24, color: '#94A3B8', textAlign: 'center', padding: '32rpx 0' }}>
+            暂无上报记录
+          </Text>
+        </SectionCard>
+      ) : (
+        exceptions.map(rep => (
+          <View
+            key={rep.id}
+            className={styles.historyCard}
+            onClick={() => Taro.navigateTo({
+              url: `/pages/exception-detail/index?id=${rep.id}`
+            })}
+          >
+            <View className={styles.historyHeader}>
+              <View className={styles.historyLeft}>
+                <StatusBadge
+                  text={EXCEPTION_TYPE_TEXT[rep.type]}
+                  color={
+                    rep.type === 'power_failure' || rep.type === 'temp_deviation' ? 'red'
+                      : rep.type === 'equipment_malfunction' ? 'orange'
+                      : rep.type === 'door_seal' ? 'orange' : 'blue'
+                  }
+                  size='sm'
+                />
+                <Text className={styles.historyNo}>{rep.containerNo}</Text>
+              </View>
+              <StatusBadge
+                text={
+                  rep.status === 'submitted' ? '已提交'
+                    : rep.status === 'handling' ? '处理中' : '已解决'
+                }
+                color={
+                  rep.status === 'submitted' ? 'blue'
+                    : rep.status === 'handling' ? 'orange' : 'green'
+                }
+                size='sm'
+              />
+            </View>
+            <View className={styles.historyMeta}>
+              <Text className={styles.historyMetaText}>💬 {rep.reason}</Text>
+              {rep.currentTemp !== undefined && (
+                <Text className={styles.historyMetaText} style={{ color: '#DC2626', fontWeight: 600 }}>
+                  🌡 {rep.currentTemp}℃
+                </Text>
+              )}
+            </View>
+            <View className={styles.historyMeta}>
+              <Text className={styles.historyMetaText}>
+                {formatDateTime(rep.createdAt)}
+              </Text>
+              <Text className={styles.historyMetaText}>
+                · {rep.reporter}
+              </Text>
+              {rep.photos && rep.photos.length > 0 && (
+                <Text className={styles.historyMetaText}>
+                  · 📷 {rep.photos.length}张
+                </Text>
+              )}
+              {rep.actions && rep.actions.length > 0 && (
+                <Text className={styles.historyMetaText}>
+                  · 措施{rep.actions.length}项
+                </Text>
+              )}
+              {rep.durationMinutes && (
+                <Text className={styles.historyMetaText}>
+                  · 持续{rep.durationMinutes}分钟
+                </Text>
+              )}
+            </View>
+            {rep.location && (
+              <View className={styles.historyMeta}>
+                <Text className={styles.historyMetaText}>📍 {rep.location}</Text>
+              </View>
+            )}
+            <Text className={styles.historyDesc}>{rep.description}</Text>
+          </View>
+        ))
+      )}
     </View>
   )
 }

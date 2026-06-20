@@ -42,6 +42,15 @@ export const buildTempRanges = (requiredTemp: number) => ({
   reviewMax: requiredTemp + 5
 })
 
+const parseNum = (v: any): number | undefined => {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') {
+    const n = parseFloat(v)
+    return isNaN(n) ? undefined : n
+  }
+  return undefined
+}
+
 export const evaluateInspection = (
   items: CheckItem[],
   requiredTemp: number
@@ -71,8 +80,9 @@ export const evaluateInspection = (
           issues.push(`${item.name}：需确认`)
         }
       }
-    } else if (item.type === 'input' && typeof item.value === 'number') {
-      const v = item.value
+    } else if (item.type === 'input') {
+      const v = parseNum(item.value)
+      if (v === undefined) return
 
       if (item.id === 'thermo_reading' || item.id === 'set_temp_match') {
         if (v < reviewMin || v > reviewMax) {
@@ -118,7 +128,10 @@ export const evaluateInspection = (
   } else {
     const allCompleted = items.filter(i => i.required).every(i => {
       if (i.type === 'switch') return i.value === true
-      if (i.type === 'input') return i.value !== undefined && i.value !== ''
+      if (i.type === 'input') {
+        const n = parseNum(i.value)
+        return n !== undefined
+      }
       return true
     })
     result = allCompleted ? 'pass' : 'review'
