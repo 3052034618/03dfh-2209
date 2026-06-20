@@ -1,14 +1,18 @@
 import { InspectionResult, CheckItem, TaskStatus } from '@/types'
 
-export const formatTime = (timeStr: string): string => {
+export const formatTime = (timeStr?: string | null): string => {
+  if (!timeStr) return '等待中'
   const date = new Date(timeStr)
+  if (isNaN(date.getTime())) return '等待中'
   const hh = String(date.getHours()).padStart(2, '0')
   const mm = String(date.getMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
 }
 
-export const formatDateTime = (timeStr: string): string => {
+export const formatDateTime = (timeStr?: string | null): string => {
+  if (!timeStr) return '待处理'
   const date = new Date(timeStr)
+  if (isNaN(date.getTime())) return '待处理'
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   const hh = String(date.getHours()).padStart(2, '0')

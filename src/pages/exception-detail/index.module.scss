@@ -470,9 +470,8 @@
   font-weight: $font-weight-semibold;
   border-radius: $radius-button;
   border: none;
-  margin-top: $spacing-sm;
-  margin-bottom: $spacing-sm;
   width: 100%;
+  margin: 0;
 
   &:active {
     opacity: 0.9;
@@ -487,6 +486,28 @@
     opacity: 0.6;
     background: linear-gradient(135deg, #94A3B8 0%, #CBD5E1 100%);
   }
+}
+
+.simulateGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.simulateBtnPrimary {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  box-shadow: 0 6rpx 24rpx rgba(37, 99, 235, 0.25);
+}
+
+.simulateBtnOrange {
+  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
+  box-shadow: 0 6rpx 24rpx rgba(234, 88, 12, 0.25);
+}
+
+.simulateBtnGreen {
+  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+  box-shadow: 0 6rpx 24rpx rgba(22, 163, 74, 0.25);
 }
 
 .empty {

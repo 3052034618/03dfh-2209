@@ -12,27 +12,39 @@ import SectionCard from '@/components/SectionCard'
 import StatusBadge from '@/components/StatusBadge'
 import styles from './index.module.scss'
 
+const parseNumeric = (v: any): number | undefined => {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') {
+    const n = parseFloat(v)
+    return isNaN(n) ? undefined : n
+  }
+  return undefined
+}
+
+const buildInitialState = (availableTasks: Task[]) => {
+  const draft = appStore.loadInspectionDraft()
+  if (draft && draft.items.length > 0) {
+    const matchedTask = availableTasks.find(t => t.id === draft.taskId)
+    if (matchedTask) {
+      console.log('[Inspection] 初始化恢复草稿:', draft.containerNo, '任务ID:', draft.taskId)
+      return { task: matchedTask, items: draft.items }
+    }
+  }
+  return { task: availableTasks[0] || null, items: defaultCheckItems.map(it => ({ ...it })) }
+}
+
 const InspectionPage: React.FC = () => {
   const availableTasks = useMemo(() =>
     mockTasks.filter(t => t.status === 'pending' || t.status === 'picking' || t.status === 'shipping'),
     []
   )
-  const [selectedTask, setSelectedTask] = useState<Task | null>(availableTasks[0] || null)
-  const [checkItems, setCheckItems] = useState<CheckItem[]>(() => {
-    const draft = appStore.loadInspectionDraft()
-    if (draft && draft.items.length > 0) {
-      const matchedTask = availableTasks.find(t => t.id === draft.taskId)
-      if (matchedTask) {
-        setTimeout(() => {
-          console.log('[Inspection] 恢复草稿:', draft.containerNo, '保存时间:', draft.savedAt)
-        }, 0)
-        return draft.items
-      }
-    }
-    return defaultCheckItems.map(it => ({ ...it }))
-  })
+
+  const initial = useMemo(() => buildInitialState(availableTasks), [])
+  const [selectedTask, setSelectedTask] = useState<Task | null>(initial.task)
+  const [checkItems, setCheckItems] = useState<CheckItem[]>(initial.items)
   const [showTaskPicker, setShowTaskPicker] = useState(false)
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const evaluation = useMemo(() => {
     if (!selectedTask) return { result: 'review' as InspectionResult, issues: [] }
@@ -65,7 +77,10 @@ const InspectionPage: React.FC = () => {
       (i.type === 'switch' && i.value === true) ||
       (i.type === 'input' && i.value !== undefined && i.value !== '')
     )
-    if (!hasInput) return
+    if (!hasInput) {
+      appStore.clearInspectionDraft()
+      return
+    }
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
     draftTimerRef.current = setTimeout(() => {
       appStore.saveInspectionDraft({
@@ -77,22 +92,28 @@ const InspectionPage: React.FC = () => {
   }
 
   useEffect(() => {
-    console.log('[Inspection] 当前任务:', selectedTask?.containerNo)
+    console.log('[Inspection] 当前任务:', selectedTask?.containerNo, '要求温度:', selectedTask?.requiredTemp)
     console.log('[Inspection] 评估结果:', INSPECTION_RESULT_TEXT[result])
   }, [selectedTask, result])
 
   useEffect(() => {
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     }
   }, [])
 
   usePullDownRefresh(() => {
     setTimeout(() => {
       setCheckItems(defaultCheckItems.map(it => ({ ...it })))
+      appStore.clearInspectionDraft()
       Taro.stopPullDownRefresh()
     }, 600)
   })
+
+  const showToastBrief = (title: string, icon: any = 'none', duration = 1500) => {
+    Taro.showToast({ title, icon, duration })
+  }
 
   const handleSelectTask = () => {
     setShowTaskPicker(true)
@@ -100,28 +121,42 @@ const InspectionPage: React.FC = () => {
       itemList: availableTasks.map(t => `${t.containerNo} · ${t.customer} · 要求${t.requiredTemp}℃`),
       success: res => {
         const task = availableTasks[res.tapIndex]
-        setSelectedTask(task)
-        const resetItems = defaultCheckItems.map(it => ({
-          ...it,
-          value: undefined as undefined,
-          rawValue: undefined as undefined,
-          status: 'pending' as const
-        }))
-        setCheckItems(resetItems)
-        console.log('[Inspection] 切换任务:', task.containerNo, '要求温度:', task.requiredTemp, '℃')
-        Taro.showToast({ title: `已切换到 ${task.containerNo}`, icon: 'none', duration: 1500 })
+        if (!task) return
+        const cur = selectedTask
+        if (cur && cur.id === task.id) {
+          showToastBrief('当前已选择该任务')
+          return
+        }
+        const hasInput = checkItems.some(i =>
+          (i.type === 'switch' && i.value === true) ||
+          (i.type === 'input' && i.value !== undefined && i.value !== '')
+        )
+        const doSwitch = () => {
+          setSelectedTask(task)
+          const resetItems = defaultCheckItems.map(it => ({
+            ...it,
+            value: undefined,
+            rawValue: undefined,
+            status: 'pending' as const
+          }))
+          setCheckItems(resetItems)
+          appStore.clearInspectionDraft()
+          console.log('[Inspection] 切换任务:', task.containerNo, '要求温度:', task.requiredTemp, '℃')
+          showToastBrief(`已切换到 ${task.containerNo}（${task.requiredTemp}℃）`)
+        }
+        if (hasInput) {
+          Taro.showModal({
+            title: '切换任务将清空草稿',
+            content: `当前 ${cur?.containerNo || ''} 的未提交检查内容将丢失，确认切换到 ${task.containerNo}？`,
+            confirmText: '确认切换',
+            success: r => { if (r.confirm) doSwitch() }
+          })
+        } else {
+          doSwitch()
+        }
       },
       complete: () => setShowTaskPicker(false)
     })
-  }
-
-  const parseNumeric = (v: any): number | undefined => {
-    if (typeof v === 'number') return v
-    if (typeof v === 'string') {
-      const n = parseFloat(v)
-      return isNaN(n) ? undefined : n
-    }
-    return undefined
   }
 
   const handleItemChange = (id: string, value: boolean | number | string, rawValue?: string) => {
@@ -158,7 +193,7 @@ const InspectionPage: React.FC = () => {
             }
           }
         }
-        const updated = { ...item, value, status }
+        const updated: CheckItem = { ...item, value, status }
         if (item.type === 'input') {
           (updated as any).rawValue = rawValue
         }
@@ -170,28 +205,38 @@ const InspectionPage: React.FC = () => {
   }
 
   const handleReset = () => {
+    const hasInput = checkItems.some(i =>
+      (i.type === 'switch' && i.value === true) ||
+      (i.type === 'input' && i.value !== undefined && i.value !== '')
+    )
+    const doReset = () => {
+      const resetItems = defaultCheckItems.map(it => ({
+        ...it,
+        value: undefined as undefined,
+        rawValue: undefined as undefined,
+        status: 'pending' as const
+      }))
+      setCheckItems(resetItems)
+      appStore.clearInspectionDraft()
+      showToastBrief('已重置', 'success')
+    }
+    if (!hasInput) {
+      doReset()
+      return
+    }
     Taro.showModal({
       title: '重置检查',
-      content: '确定要清空所有检查项吗？',
+      content: '所有已填内容和草稿将被清空，确定重置吗？',
+      confirmText: '确定重置',
       success: res => {
-        if (res.confirm) {
-          const resetItems = defaultCheckItems.map(it => ({
-            ...it,
-            value: undefined as undefined,
-            rawValue: undefined as undefined,
-            status: 'pending' as const
-          }))
-          setCheckItems(resetItems)
-          appStore.clearInspectionDraft()
-          Taro.showToast({ title: '已重置', icon: 'success' })
-        }
+        if (res.confirm) doReset()
       }
     })
   }
 
   const handleSubmit = () => {
     if (!selectedTask) {
-      Taro.showToast({ title: '请先选择任务', icon: 'none' })
+      showToastBrief('请先选择任务')
       return
     }
     if (progress.done < progress.total) {
@@ -238,8 +283,8 @@ const InspectionPage: React.FC = () => {
           })
           setTimeout(() => {
             Taro.hideLoading()
-            Taro.showToast({ title: '检查已提交', icon: 'success' })
-            console.log('[Inspection] 检查记录已保存:', saved.id, saved.containerNo)
+            showToastBrief('检查已提交', 'success')
+            console.log('[Inspection] 检查记录已保存:', saved.id, saved.containerNo, '草稿已清除')
             const resetItems = defaultCheckItems.map(it => ({
               ...it,
               value: undefined as undefined,
@@ -251,7 +296,7 @@ const InspectionPage: React.FC = () => {
           }, 800)
         } catch (e) {
           Taro.hideLoading()
-          Taro.showToast({ title: '提交失败，请重试', icon: 'none' })
+          showToastBrief('提交失败，请重试')
           console.error('[Inspection] 提交失败:', e)
         }
       }
@@ -305,10 +350,10 @@ const InspectionPage: React.FC = () => {
             {progress.done === 0
               ? '请开始逐项检查箱体状态，完成后系统将自动判定发车许可。'
               : result === 'pass'
-                ? '所有必检项已通过，箱体状态良好，安全可发车。'
+                ? `基于 ${selectedTask?.containerNo || '当前任务'} 要求温度 ${selectedTask?.requiredTemp}℃ 判定：所有必检项已通过，箱体状态良好，安全可发车。`
                 : result === 'review'
-                  ? `存在 ${issues.length} 项待确认问题，请根据情况处理或联系调度复核。`
-                  : `存在 ${issues.length} 项严重问题，禁止发车！请立即处理后重新检查。`
+                  ? `基于 ${selectedTask?.containerNo || '当前任务'} 要求温度 ${selectedTask?.requiredTemp}℃ 判定：存在 ${issues.length} 项待确认问题，请根据情况处理或联系调度复核。`
+                  : `基于 ${selectedTask?.containerNo || '当前任务'} 要求温度 ${selectedTask?.requiredTemp}℃ 判定：存在 ${issues.length} 项严重问题，禁止发车！请立即处理后重新检查。`
             }
           </Text>
           {issues.length > 0 && progress.done > 0 && (
@@ -395,7 +440,7 @@ const HistoryList: React.FC = () => {
             ? thermoItem.rawValue
             : (typeof thermoItem?.value === 'number' ? `${thermoItem.value}` : (typeof thermoItem?.value === 'string' && thermoItem.value ? thermoItem.value : ''))
           const tempStr = tempDisplay ? `${tempDisplay}℃` : '未录入'
-          const tempNum = typeof thermoItem?.value === 'number' ? thermoItem.value : undefined
+          const tempNum = parseNumeric(thermoItem?.value)
           const reqTemp = (rec as any).requiredTemp
           let diffText = ''
           if (tempNum !== undefined && typeof reqTemp === 'number') {

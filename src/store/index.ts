@@ -119,13 +119,26 @@ const buildAndSaveInspection = (params: {
   requiredTemp: number
 }): InspectionRecord => {
   const thermoItem = params.items.find(i => i.id === 'thermo_reading')
-  const tempReading = typeof thermoItem?.value === 'number' ? thermoItem.value : undefined
+  const parseN = (v: any): number | undefined => {
+    if (typeof v === 'number') return v
+    if (typeof v === 'string') { const n = parseFloat(v); return isNaN(n) ? undefined : n }
+    return undefined
+  }
+  const tempReading = parseN(thermoItem?.value)
+
+  const cleanedItems: CheckItem[] = params.items.map(it => {
+    const base: CheckItem = { ...it }
+    if (it.type === 'input' && (it as any).rawValue !== undefined) {
+      (base as any).rawValue = (it as any).rawValue
+    }
+    return base
+  })
 
   const record: InspectionRecord = {
     id: genId('IR'),
     taskId: params.taskId,
     containerNo: params.containerNo,
-    items: JSON.parse(JSON.stringify(params.items)),
+    items: cleanedItems,
     result: params.result,
     remark: params.remark,
     operator: '张师傅',
@@ -143,7 +156,11 @@ const buildAndSaveException = (params: Omit<ExceptionReport, 'id' | 'reporter' |
 }): ExceptionReport => {
   const now = new Date().toISOString()
   const timeline: ExceptionTimelineItem[] = [
-    { time: now, label: '司机提交异常上报', done: true }
+    { time: now, label: '司机提交异常上报', done: true },
+    { time: '', label: '等待调度查看', done: false },
+    { time: '', label: '调度给出处置意见', done: false },
+    { time: '', label: '需要补充信息', done: false },
+    { time: '', label: '问题解决，关闭上报', done: false }
   ]
   const report: ExceptionReport = {
     id: genId('ER'),

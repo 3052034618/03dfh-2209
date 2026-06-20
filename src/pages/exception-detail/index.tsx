@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import classnames from 'classnames'
 import {
   ExceptionType,
   ExceptionAction,
@@ -42,20 +43,78 @@ const ExceptionDetailPage: React.FC = () => {
     return s.exceptions.find(r => r.id === id)
   })
 
-  const handleSimulateDispatch = useCallback(() => {
-    if (!id || simulating) return
+  const timeline = report?.timeline || []
+  const currentStepIndex = useMemo(() => {
+    const idx = timeline.findIndex(item => !item.done)
+    return idx === -1 ? timeline.length : idx
+  }, [timeline])
+
+  const handleSimulateStep = useCallback((step: 'view' | 'opinion' | 'supplement' | 'close') => {
+    if (!id || simulating || !report) return
     setSimulating(true)
     const now = new Date().toISOString()
-    const existing = appStore.getExceptionById(id)
-    const existingTimeline = existing?.timeline || []
-    appStore.updateExceptionStatus(id, {
-      dispatchViewed: true,
-      dispatchViewedAt: now,
-      status: 'handling',
-      timeline: [...existingTimeline, { time: now, label: '调度已查看', done: true }]
-    })
+    const existingTimeline = report.timeline || []
+    let updatedTimeline = existingTimeline.map(item => ({ ...item }))
+    const updates: Record<string, any> = {}
+
+    if (step === 'view') {
+      updatedTimeline = updatedTimeline.map(item => {
+        if (!item.done && item.label === '等待调度查看') {
+          return { time: now, label: '调度已查看', done: true }
+        }
+        return item
+      })
+      updates.dispatchViewed = true
+      updates.dispatchViewedAt = now
+      updates.status = 'handling'
+    } else if (step === 'opinion') {
+      updatedTimeline = updatedTimeline.map(item => {
+        if (!item.done && item.label === '等待调度查看') {
+          return { time: report.dispatchViewedAt || now, label: '调度已查看', done: true }
+        }
+        if (!item.done && item.label === '调度给出处置意见') {
+          return { time: now, label: '调度已给出处置意见', done: true }
+        }
+        return item
+      })
+      updates.dispatchViewed = true
+      updates.dispatchViewedAt = report.dispatchViewedAt || now
+      updates.dispatchOpinion = '已联系就近维修站现场处理，司机请在安全区域等待，预计30分钟内到达。除霜后重新测温，温度恢复正常可继续运输。'
+      updates.dispatchOpinionAt = now
+      updates.status = 'handling'
+      updates.needSupplement = 'temp'
+    } else if (step === 'supplement') {
+      updatedTimeline = updatedTimeline.map(item => {
+        if (!item.done && item.label === '需要补充信息') {
+          return { time: now, label: '司机已补充信息并确认', done: true }
+        }
+        return item
+      })
+      updates.needSupplement = null
+    } else if (step === 'close') {
+      updatedTimeline = updatedTimeline.map(item => {
+        if (!item.done && item.label === '等待调度查看') {
+          return { time: report.dispatchViewedAt || now, label: '调度已查看', done: true }
+        }
+        if (!item.done && item.label === '调度给出处置意见') {
+          return { time: report.dispatchOpinionAt || now, label: '调度已给出处置意见', done: true }
+        }
+        if (!item.done && item.label === '需要补充信息') {
+          return { time: now, label: '无需补充信息', done: true }
+        }
+        if (!item.done && item.label === '问题解决，关闭上报') {
+          return { time: now, label: '问题已解决，上报已关闭', done: true }
+        }
+        return item
+      })
+      updates.status = 'resolved'
+      updates.dispatchViewed = true
+    }
+
+    updates.timeline = updatedTimeline
+    appStore.updateExceptionStatus(id, updates)
     setTimeout(() => setSimulating(false), 600)
-  }, [id, simulating])
+  }, [id, simulating, report])
 
   if (!report) {
     return (
@@ -81,9 +140,6 @@ const ExceptionDetailPage: React.FC = () => {
     : undefined
 
   const tempRanges = requiredTemp !== undefined ? buildTempRanges(requiredTemp) : null
-
-  const timeline = report.timeline || []
-  const currentStepIndex = timeline.findIndex(item => !item.done)
 
   return (
     <View className={styles.page}>
@@ -126,19 +182,19 @@ const ExceptionDetailPage: React.FC = () => {
         <View className={styles.card}>
           <View className={styles.cardTitle}>🌡️ 温度快照</View>
           <View className={styles.tempGroup}>
-            <View className={[styles.tempBlock, styles.tempReq]}>
+            <View className={classnames(styles.tempBlock, styles.tempReq)}>
               <Text className={styles.tempLabel}>客户要求</Text>
               <Text className={styles.tempNum}>
                 {requiredTemp !== undefined ? `${requiredTemp}℃` : '—'}
               </Text>
             </View>
-            <View className={[styles.tempBlock, styles.tempNow]}>
+            <View className={classnames(styles.tempBlock, styles.tempNow)}>
               <Text className={styles.tempLabel}>当前温度</Text>
               <Text className={styles.tempNum}>
                 {currentTemp !== undefined ? `${currentTemp}℃` : '—'}
               </Text>
             </View>
-            <View className={[styles.tempBlock, styles.tempDiff]}>
+            <View className={classnames(styles.tempBlock, styles.tempDiff)}>
               <Text className={styles.tempLabel}>偏差</Text>
               <Text className={styles.tempNum}>
                 {diffValue !== undefined
@@ -270,17 +326,38 @@ const ExceptionDetailPage: React.FC = () => {
               return (
                 <View key={idx} className={styles.timelineItem}>
                   <View className={styles.timelineLeft}>
-                    <View className={`${styles.timelineDot} ${isDone ? styles.timelineDotDone : isCurrent ? styles.timelineDotCurrent : styles.timelineDotPending}`} />
-                    {!isLast && <View className={`${styles.timelineLine} ${isDone ? styles.timelineLineDone : styles.timelineLinePending}`} />}
+                    <View className={classnames(
+                      styles.timelineDot,
+                      isDone && styles.timelineDotDone,
+                      isCurrent && styles.timelineDotCurrent,
+                      !isDone && !isCurrent && styles.timelineDotPending
+                    )} />
+                    {!isLast && (
+                      <View className={classnames(
+                        styles.timelineLine,
+                        isDone && styles.timelineLineDone,
+                        !isDone && styles.timelineLinePending
+                      )} />
+                    )}
                   </View>
-                  <View className={`${styles.timelineContent} ${isCurrent ? styles.timelineContentCurrent : ''}`}>
+                  <View className={classnames(
+                    styles.timelineContent,
+                    isCurrent && styles.timelineContentCurrent
+                  )}>
                     <View className={styles.timelineHeader}>
-                      <Text className={`${styles.timelineLabel} ${isDone ? styles.timelineLabelDone : isCurrent ? styles.timelineLabelCurrent : styles.timelineLabelPending}`}>
+                      <Text className={classnames(
+                        styles.timelineLabel,
+                        isDone && styles.timelineLabelDone,
+                        isCurrent && styles.timelineLabelCurrent,
+                        !isDone && !isCurrent && styles.timelineLabelPending
+                      )}>
                         {item.label}
                       </Text>
                       {isCurrent && <View className={styles.timelineBadge}>进行中</View>}
                     </View>
-                    <Text className={styles.timelineTime}>{formatDateTime(item.time)}</Text>
+                    <Text className={styles.timelineTime}>
+                      {item.done ? formatDateTime(item.time) : '⏳ 等待中'}
+                    </Text>
                   </View>
                 </View>
               )
@@ -387,14 +464,45 @@ const ExceptionDetailPage: React.FC = () => {
         </View>
       </View>
 
-      {!report.dispatchViewed && (
-        <Button
-          className={styles.simulateBtn}
-          disabled={simulating}
-          onClick={handleSimulateDispatch}
-        >
-          {simulating ? '模拟中...' : '🔧 模拟调度查看'}
-        </Button>
+      {report.status !== 'resolved' && (
+        <View className={styles.simulateGroup}>
+          {!report.dispatchViewed && (
+            <Button
+              className={classnames(styles.simulateBtn, styles.simulateBtnPrimary)}
+              disabled={simulating}
+              onClick={() => handleSimulateStep('view')}
+            >
+              {simulating ? '处理中...' : '① 模拟调度查看'}
+            </Button>
+          )}
+          {report.dispatchViewed && !report.dispatchOpinion && (
+            <Button
+              className={classnames(styles.simulateBtn, styles.simulateBtnPrimary)}
+              disabled={simulating}
+              onClick={() => handleSimulateStep('opinion')}
+            >
+              {simulating ? '处理中...' : '② 模拟调度给出意见'}
+            </Button>
+          )}
+          {report.needSupplement && (
+            <Button
+              className={classnames(styles.simulateBtn, styles.simulateBtnOrange)}
+              disabled={simulating}
+              onClick={() => handleSimulateStep('supplement')}
+            >
+              {simulating ? '处理中...' : '③ 模拟司机补充信息'}
+            </Button>
+          )}
+          {report.dispatchViewed && (
+            <Button
+              className={classnames(styles.simulateBtn, styles.simulateBtnGreen)}
+              disabled={simulating}
+              onClick={() => handleSimulateStep('close')}
+            >
+              {simulating ? '处理中...' : '④ 模拟问题解决关闭'}
+            </Button>
+          )}
+        </View>
       )}
 
       <Button className={styles.backBtn} onClick={() => Taro.navigateBack()}>
