@@ -5,7 +5,7 @@ import classnames from 'classnames'
 import { Task, CheckItem, InspectionResult, INSPECTION_RESULT_TEXT } from '@/types'
 import { mockTasks } from '@/data/tasks'
 import { defaultCheckItems, mockInspectionRecords } from '@/data/inspection'
-import { evaluateInspection, formatDateTime } from '@/utils'
+import { evaluateInspection, formatDateTime, buildTempRanges } from '@/utils'
 import CheckItemComp from '@/components/CheckItem'
 import SectionCard from '@/components/SectionCard'
 import StatusBadge from '@/components/StatusBadge'
@@ -22,8 +22,20 @@ const InspectionPage: React.FC = () => {
   )
   const [showTaskPicker, setShowTaskPicker] = useState(false)
 
-  const evaluation = useMemo(() => evaluateInspection(checkItems), [checkItems])
+  const evaluation = useMemo(() => {
+    if (!selectedTask) return { result: 'review' as InspectionResult, issues: [] }
+    return evaluateInspection(checkItems, selectedTask.requiredTemp)
+  }, [checkItems, selectedTask])
   const { result, issues } = evaluation
+
+  const tempRanges = useMemo(() => {
+    if (!selectedTask) return null
+    const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(selectedTask.requiredTemp)
+    return {
+      passRange: { min: passMin, max: passMax },
+      failRange: { min: reviewMin, max: reviewMax }
+    }
+  }, [selectedTask])
 
   const progress = useMemo(() => {
     const required = checkItems.filter(i => i.required)
@@ -50,12 +62,18 @@ const InspectionPage: React.FC = () => {
   const handleSelectTask = () => {
     setShowTaskPicker(true)
     Taro.showActionSheet({
-      itemList: availableTasks.map(t => `${t.containerNo} · ${t.customer}`),
+      itemList: availableTasks.map(t => `${t.containerNo} · ${t.customer} · 要求${t.requiredTemp}℃`),
       success: res => {
         const task = availableTasks[res.tapIndex]
         setSelectedTask(task)
-        setCheckItems(defaultCheckItems.map(it => ({ ...it })))
-        console.log('[Inspection] 切换任务:', task.containerNo)
+        const resetItems = defaultCheckItems.map(it => ({
+          ...it,
+          value: undefined,
+          status: 'pending' as const
+        }))
+        setCheckItems(resetItems)
+        console.log('[Inspection] 切换任务:', task.containerNo, '要求温度:', task.requiredTemp, '℃')
+        Taro.showToast({ title: `已切换到 ${task.containerNo}`, icon: 'none', duration: 1500 })
       },
       complete: () => setShowTaskPicker(false)
     })
@@ -65,18 +83,30 @@ const InspectionPage: React.FC = () => {
     setCheckItems(prev => prev.map(item => {
       if (item.id !== id) return item
       let status: CheckItem['status'] = 'pending'
+
       if (item.type === 'switch') {
         status = value === true ? 'pass' : 'fail'
-      } else if (item.type === 'input' && item.passRange && typeof value === 'number') {
-        const { min, max } = item.passRange
-        if (value >= min && value <= max) {
-          status = 'pass'
-        } else if (item.failRange) {
-          const fmin = item.failRange.min ?? -Infinity
-          const fmax = item.failRange.max ?? Infinity
-          status = (value < fmin || value > fmax) ? 'fail' : 'pass'
-        } else {
-          status = 'fail'
+      } else if (item.type === 'input' && typeof value === 'number' && selectedTask) {
+        if (id === 'thermo_reading' || id === 'set_temp_match') {
+          const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(selectedTask.requiredTemp)
+          if (value >= passMin && value <= passMax) {
+            status = 'pass'
+          } else if (value < reviewMin || value > reviewMax) {
+            status = 'fail'
+          } else {
+            status = 'fail'
+          }
+        } else if (item.passRange) {
+          const { min, max } = item.passRange
+          if (value >= min && value <= max) {
+            status = 'pass'
+          } else if (item.failRange) {
+            const fmin = item.failRange.min ?? -Infinity
+            const fmax = item.failRange.max ?? Infinity
+            status = (value < fmin || value > fmax) ? 'fail' : 'fail'
+          } else {
+            status = 'fail'
+          }
         }
       }
       return { ...item, value, status }
@@ -89,7 +119,12 @@ const InspectionPage: React.FC = () => {
       content: '确定要清空所有检查项吗？',
       success: res => {
         if (res.confirm) {
-          setCheckItems(defaultCheckItems.map(it => ({ ...it })))
+          const resetItems = defaultCheckItems.map(it => ({
+            ...it,
+            value: undefined,
+            status: 'pending' as const
+          }))
+          setCheckItems(resetItems)
           Taro.showToast({ title: '已重置', icon: 'success' })
         }
       }
@@ -230,6 +265,16 @@ const InspectionPage: React.FC = () => {
                   : undefined
               }
               referenceLabel='客户要求'
+              dynamicPassRange={
+                (item.id === 'thermo_reading' || item.id === 'set_temp_match')
+                  ? tempRanges?.passRange
+                  : undefined
+              }
+              dynamicFailRange={
+                (item.id === 'thermo_reading' || item.id === 'set_temp_match')
+                  ? tempRanges?.failRange
+                  : undefined
+              }
             />
           ))}
         </SectionCard>

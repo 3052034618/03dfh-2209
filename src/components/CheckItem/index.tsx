@@ -9,28 +9,37 @@ interface CheckItemProps {
   onChange: (id: string, value: boolean | number | string) => void
   referenceValue?: number
   referenceLabel?: string
+  dynamicPassRange?: { min: number; max: number }
+  dynamicFailRange?: { min: number; max: number }
 }
 
 const CheckItemComp: React.FC<CheckItemProps> = ({
   item,
   onChange,
   referenceValue,
-  referenceLabel = '参考值'
+  referenceLabel = '参考值',
+  dynamicPassRange,
+  dynamicFailRange
 }) => {
   const checked = item.value === true
   const numValue = typeof item.value === 'number' ? item.value : undefined
 
+  const passRange = dynamicPassRange || item.passRange
+  const failRange = dynamicFailRange || item.failRange
+
   const renderPassHint = () => {
-    if (item.type !== 'input' || !item.passRange) return null
+    if (item.type !== 'input') return null
     if (numValue === undefined || numValue === null) return null
 
-    const { min, max } = item.passRange
-    if (numValue >= min && numValue <= max) {
-      return <View className={styles.passTag}>✓ 在正常范围</View>
+    if (passRange) {
+      const { min, max } = passRange
+      if (numValue >= min && numValue <= max) {
+        return <View className={styles.passTag}>✓ 在正常范围</View>
+      }
     }
-    if (item.failRange) {
-      const fmin = item.failRange.min ?? -Infinity
-      const fmax = item.failRange.max ?? Infinity
+    if (failRange) {
+      const fmin = failRange.min ?? -Infinity
+      const fmax = failRange.max ?? Infinity
       if (numValue < fmin || numValue > fmax) {
         return <View className={styles.failTag}>✗ 严重偏离</View>
       }
@@ -76,25 +85,26 @@ const CheckItemComp: React.FC<CheckItemProps> = ({
             <View className={styles.inputRow}>
               <View className={styles.inputWrapper}>
                 <Input
-                  type='digit'
+                  type='text'
                   className={styles.input}
                   value={numValue !== undefined ? String(numValue) : ''}
-                  placeholder='请输入实际读数'
+                  placeholder='请输入实际读数（如 -18）'
                   onInput={e => {
-                    const v = e.detail.value
+                    const v = e.detail.value.trim()
                     if (v === '' || v === '-') {
                       onChange(item.id, '')
-                    } else {
-                      const n = parseFloat(v)
-                      if (!isNaN(n)) onChange(item.id, n)
+                      return
                     }
+                    if (!/^-?\d*\.?\d*$/.test(v)) return
+                    const n = parseFloat(v)
+                    if (!isNaN(n)) onChange(item.id, n)
                   }}
                 />
                 {item.unit && <Text className={styles.inputUnit}>{item.unit}</Text>}
               </View>
-              {item.passRange && (
+              {passRange && (
                 <View className={styles.rangeHint}>
-                  正常：{item.passRange.min}~{item.passRange.max}{item.unit}
+                  正常：{passRange.min}~{passRange.max}{item.unit}
                 </View>
               )}
             </View>

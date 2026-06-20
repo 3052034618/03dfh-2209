@@ -35,17 +35,35 @@ export const getDeadlineText = (deadline: string): string => {
   return `剩 ${minutes}分钟`
 }
 
-export const evaluateInspection = (items: CheckItem[]): { result: InspectionResult; issues: string[] } => {
+export const buildTempRanges = (requiredTemp: number) => ({
+  passMin: requiredTemp - 2,
+  passMax: requiredTemp + 2,
+  reviewMin: requiredTemp - 5,
+  reviewMax: requiredTemp + 5
+})
+
+export const evaluateInspection = (
+  items: CheckItem[],
+  requiredTemp: number
+): { result: InspectionResult; issues: string[] } => {
   const issues: string[] = []
   let hasCriticalFail = false
   let hasWarning = false
+
+  const { passMin, passMax, reviewMin, reviewMax } = buildTempRanges(requiredTemp)
+
+  console.log('[Inspection] 评估基准 - 要求温度:', requiredTemp, '℃')
+  console.log('[Inspection] 可发车范围:', passMin, '~', passMax, '℃')
+  console.log('[Inspection] 禁止发车阈值: <', reviewMin, '或 >', reviewMax, '℃')
+
+  const criticalSwitchIds = ['door_seal', 'plug_status', 'power_vehicle']
 
   items.forEach(item => {
     if (!item.required) return
 
     if (item.type === 'switch') {
       if (item.value === false) {
-        if (item.id === 'door_seal' || item.id === 'power_connection') {
+        if (criticalSwitchIds.includes(item.id)) {
           hasCriticalFail = true
           issues.push(`${item.name}：未通过`)
         } else {
@@ -53,23 +71,40 @@ export const evaluateInspection = (items: CheckItem[]): { result: InspectionResu
           issues.push(`${item.name}：需确认`)
         }
       }
-    } else if (item.type === 'input' && item.passRange && typeof item.value === 'number') {
+    } else if (item.type === 'input' && typeof item.value === 'number') {
       const v = item.value
-      const { min, max } = item.passRange
-      if (v < min || v > max) {
-        if (item.failRange) {
-          const fmin = item.failRange.min ?? -Infinity
-          const fmax = item.failRange.max ?? Infinity
-          if (v < fmin || v > fmax) {
-            hasCriticalFail = true
-            issues.push(`${item.name}：严重偏离 (${v}${item.unit || ''})`)
-          } else {
-            hasWarning = true
-            issues.push(`${item.name}：偏离范围 (${v}${item.unit || ''})`)
-          }
-        } else {
+
+      if (item.id === 'thermo_reading' || item.id === 'set_temp_match') {
+        if (v < reviewMin || v > reviewMax) {
+          hasCriticalFail = true
+          const diff = (v - requiredTemp).toFixed(1)
+          const sign = Number(diff) > 0 ? '+' : ''
+          issues.push(`${item.name}：严重偏离 (${v}${item.unit || ''}，偏差${sign}${diff}${item.unit || ''})`)
+        } else if (v < passMin || v > passMax) {
           hasWarning = true
-          issues.push(`${item.name}：偏离范围 (${v}${item.unit || ''})`)
+          const diff = (v - requiredTemp).toFixed(1)
+          const sign = Number(diff) > 0 ? '+' : ''
+          issues.push(`${item.name}：偏离范围 (${v}${item.unit || ''}，偏差${sign}${diff}${item.unit || ''})`)
+        }
+      } else {
+        if (item.passRange) {
+          const { min, max } = item.passRange
+          if (v < min || v > max) {
+            if (item.failRange) {
+              const fmin = item.failRange.min ?? -Infinity
+              const fmax = item.failRange.max ?? Infinity
+              if (v < fmin || v > fmax) {
+                hasCriticalFail = true
+                issues.push(`${item.name}：严重偏离 (${v}${item.unit || ''})`)
+              } else {
+                hasWarning = true
+                issues.push(`${item.name}：偏离范围 (${v}${item.unit || ''})`)
+              }
+            } else {
+              hasWarning = true
+              issues.push(`${item.name}：偏离范围 (${v}${item.unit || ''})`)
+            }
+          }
         }
       }
     }
@@ -88,6 +123,8 @@ export const evaluateInspection = (items: CheckItem[]): { result: InspectionResu
     })
     result = allCompleted ? 'pass' : 'review'
   }
+
+  console.log('[Inspection] 评估结果 -', { hasCriticalFail, hasWarning, result, issues })
 
   return { result, issues }
 }
